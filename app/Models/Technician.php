@@ -12,6 +12,7 @@ class Technician extends Model
         'bp_id',
         'province',
         'city',
+        'districts',
         'address',
         'grade',
         'skck_file',
@@ -28,6 +29,7 @@ class Technician extends Model
 
     protected $casts = [
         'approved_at' => 'datetime',
+        'districts'   => 'array',
     ];
 
     public function user(): BelongsTo

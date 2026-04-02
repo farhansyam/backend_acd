@@ -15,7 +15,7 @@
             <iconify-icon icon="lucide:users"></iconify-icon> Teknisi Aktif
         </a>
     </div>
-    <div class="card-body p-6">
+    <div class="card-body p-3">
 
         @if(session('success'))
             <div class="bg-success-100 text-success-600 px-4 py-3 rounded mb-4 flex items-center gap-2">
@@ -103,45 +103,73 @@
     </div>
 </div>
 
+{{-- Backdrop --}}
+<div id="modalBackdrop"
+     class="hidden fixed inset-0 z-40 bg-black bg-opacity-50"
+     onclick="closeAllModals()"></div>
+
 {{-- Modal Approve --}}
-<div id="approveModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50" style="display:none">
-    <div class="bg-white dark:bg-neutral-800 rounded-xl p-6 w-full max-w-sm mx-4">
-        <h6 class="font-semibold text-lg mb-4">Tentukan Grade Teknisi</h6>
-        <form id="approveForm" method="POST">
-            @csrf
-            <div class="mb-4">
-                <label class="form-label font-medium text-sm">Grade <span class="text-danger-600">*</span></label>
-                <select name="grade" class="form-control">
-                    <option value="">-- Pilih Grade --</option>
-                    <option value="beginner">Beginner</option>
-                    <option value="medium">Medium</option>
-                    <option value="pro">Pro</option>
-                </select>
-            </div>
-            <div class="flex gap-3">
-                <button type="submit" class="btn btn-success-600 flex-1">Approve</button>
-                <button type="button" onclick="closeApproveModal()" class="btn btn-neutral-200 flex-1">Batal</button>
-            </div>
-        </form>
+<div id="approveModal"
+     class="hidden fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div class="bg-white dark:bg-neutral-800 rounded-xl shadow-xl w-full max-w-xs">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-600">
+            <h3 class="text-sm font-semibold text-neutral-800 dark:text-white">Tentukan Grade Teknisi</h3>
+            <button onclick="closeAllModals()"
+                    class="w-7 h-7 flex items-center justify-center rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-400">
+                <iconify-icon icon="lucide:x"></iconify-icon>
+            </button>
+        </div>
+        <div class="px-4 py-3">
+            <form id="approveForm" method="POST">
+                @csrf
+                <div class="mb-3">
+                    <label class="block text-xs font-medium mb-1 text-neutral-700 dark:text-neutral-200">
+                        Grade <span class="text-red-500">*</span>
+                    </label>
+                    <select name="grade" class="form-control text-xs py-1.5 w-full">
+                        <option value="">-- Pilih Grade --</option>
+                        <option value="beginner">Beginner</option>
+                        <option value="medium">Medium</option>
+                        <option value="pro">Pro</option>
+                    </select>
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-success-600 flex-1 py-1.5 text-xs">Approve</button>
+                    <button type="button" onclick="closeAllModals()" class="btn btn-neutral-200 flex-1 py-1.5 text-xs">Batal</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
 {{-- Modal Reject --}}
-<div id="rejectModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50" style="display:none">
-    <div class="bg-white dark:bg-neutral-800 rounded-xl p-6 w-full max-w-sm mx-4">
-        <h6 class="font-semibold text-lg mb-4">Alasan Penolakan</h6>
-        <form id="rejectForm" method="POST">
-            @csrf
-            <div class="mb-4">
-                <label class="form-label font-medium text-sm">Alasan <span class="text-danger-600">*</span></label>
-                <textarea name="rejection_reason" rows="3" class="form-control"
-                          placeholder="Tuliskan alasan penolakan..."></textarea>
-            </div>
-            <div class="flex gap-3">
-                <button type="submit" class="btn btn-danger-600 flex-1">Reject</button>
-                <button type="button" onclick="closeRejectModal()" class="btn btn-neutral-200 flex-1">Batal</button>
-            </div>
-        </form>
+<div id="rejectModal"
+     class="hidden fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div class="bg-white dark:bg-neutral-800 rounded-xl shadow-xl w-full max-w-xs">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-600">
+            <h3 class="text-sm font-semibold text-neutral-800 dark:text-white">Alasan Penolakan</h3>
+            <button onclick="closeAllModals()"
+                    class="w-7 h-7 flex items-center justify-center rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-400">
+                <iconify-icon icon="lucide:x"></iconify-icon>
+            </button>
+        </div>
+        <div class="px-4 py-3">
+            <form id="rejectForm" method="POST">
+                @csrf
+                <div class="mb-3">
+                    <label class="block text-xs font-medium mb-1 text-neutral-700 dark:text-neutral-200">
+                        Alasan <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="rejection_reason" rows="3"
+                              class="form-control text-xs w-full"
+                              placeholder="Tuliskan alasan penolakan..."></textarea>
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-danger-600 flex-1 py-1.5 text-xs">Reject</button>
+                    <button type="button" onclick="closeAllModals()" class="btn btn-neutral-200 flex-1 py-1.5 text-xs">Batal</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -149,19 +177,30 @@
 
 @push('scripts')
 <script>
-function openApproveModal(id) {
-    document.getElementById('approveForm').action = `/bp-approvals/${id}/approve`;
-    document.getElementById('approveModal').style.display = 'flex';
-}
-function closeApproveModal() {
-    document.getElementById('approveModal').style.display = 'none';
-}
-function openRejectModal(id) {
-    document.getElementById('rejectForm').action = `/bp-approvals/${id}/reject`;
-    document.getElementById('rejectModal').style.display = 'flex';
-}
-function closeRejectModal() {
-    document.getElementById('rejectModal').style.display = 'none';
-}
+    function openApproveModal(id) {
+        document.getElementById('approveForm').action = `/bp-approvals/${id}/approve`;
+        document.getElementById('modalBackdrop').classList.remove('hidden');
+        document.getElementById('approveModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function openRejectModal(id) {
+        document.getElementById('rejectForm').action = `/bp-approvals/${id}/reject`;
+        document.getElementById('modalBackdrop').classList.remove('hidden');
+        document.getElementById('rejectModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeAllModals() {
+        document.getElementById('approveModal').classList.add('hidden');
+        document.getElementById('rejectModal').classList.add('hidden');
+        document.getElementById('modalBackdrop').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    // Tutup modal dengan tombol ESC
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeAllModals();
+    });
 </script>
 @endpush

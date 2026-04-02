@@ -35,6 +35,7 @@
                         <th>Kota</th>
                         <th>Grade</th>
                         <th>Bergabung</th>
+                        <th>Status</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -60,21 +61,40 @@
                         </td>
                         <td>{{ $tech->approved_at?->format('d M Y') ?? '-' }}</td>
                         <td>
+                            @if($tech->user->is_active)
+                                <span class="bg-success-100 text-success-600 px-3 py-1 rounded-full text-sm font-medium">Aktif</span>
+                            @else
+                                <span class="bg-danger-100 text-danger-600 px-3 py-1 rounded-full text-sm font-medium">Nonaktif</span>
+                            @endif
+                        </td>
+                        <td>
                             <div class="flex items-center gap-2">
                                 <a href="{{ route('bp-technicians.show', $tech) }}"
-                                   class="w-8 h-8 bg-info-100 text-info-600 rounded flex items-center justify-center">
+                                class="w-8 h-8 bg-info-100 text-info-600 rounded flex items-center justify-center"
+                                title="Detail">
                                     <iconify-icon icon="lucide:eye"></iconify-icon>
                                 </a>
-                                <form action="{{ route('bp-technicians.destroy', $tech) }}" method="POST"
-                                      onsubmit="return confirm('Yakin nonaktifkan teknisi ini?')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit"
-                                            class="w-8 h-8 bg-danger-100 text-danger-600 rounded flex items-center justify-center">
-                                        <iconify-icon icon="lucide:user-x"></iconify-icon>
-                                    </button>
+
+                                {{-- Toggle Aktif / Nonaktif --}}
+                                <form action="{{ route('bp-technicians.toggle-active', $tech) }}" method="POST"
+                                    onsubmit="return confirm('{{ $tech->user->is_active ? 'Yakin nonaktifkan teknisi ini?' : 'Yakin aktifkan kembali teknisi ini?' }}')">
+                                    @csrf
+                                    @if($tech->user->is_active)
+                                        <button type="submit"
+                                                class="w-8 h-8 bg-danger-100 text-danger-600 rounded flex items-center justify-center"
+                                                title="Nonaktifkan">
+                                            <iconify-icon icon="lucide:user-x"></iconify-icon>
+                                        </button>
+                                    @else
+                                        <button type="submit"
+                                                class="w-8 h-8 bg-success-100 text-success-600 rounded flex items-center justify-center"
+                                                title="Aktifkan">
+                                            <iconify-icon icon="lucide:user-check"></iconify-icon>
+                                        </button>
+                                    @endif
                                 </form>
                             </div>
-                        </td>
+</td>
                     </tr>
                     @empty
                     <tr>

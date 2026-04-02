@@ -30,6 +30,9 @@ Route::get('/api/provinces', function () {
 Route::get('/api/regencies/{provinceId}', function ($provinceId) {
     return Http::get("https://emsifa.github.io/api-wilayah-indonesia/api/regencies/{$provinceId}.json")->json();
 });
+Route::get('/api/districts/{cityId}', function ($cityId) {
+    return Http::get("https://emsifa.github.io/api-wilayah-indonesia/api/districts/{$cityId}.json")->json();
+});
 
 
 // Route yang bisa diakses adminsuper DAN business_partner
@@ -43,6 +46,7 @@ Route::middleware(['auth', 'role:adminsuper,business_partner'])->group(function 
     Route::get('bp-technicians', [TechnicianController::class, 'index'])->name('bp-technicians.index');
     Route::get('bp-technicians/{technician}', [TechnicianController::class, 'show'])->name('bp-technicians.show');
     Route::delete('bp-technicians/{technician}', [TechnicianController::class, 'destroy'])->name('bp-technicians.destroy');
+    Route::post('bp-technicians/{technician}/toggle-active', [TechnicianController::class, 'toggleActive'])->name('bp-technicians.toggle-active');
 
     // Approval
     Route::get('bp-approvals', [TechnicianController::class, 'approvalIndex'])->name('bp-technicians.approval');

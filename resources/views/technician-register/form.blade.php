@@ -87,6 +87,22 @@
                     </div>
                 </div>
 
+                {{-- Kecamatan: muncul setelah kota dipilih --}}
+                <div id="districts-wrapper" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Kecamatan <span class="text-red-500">*</span>
+                        <span class="text-gray-400 font-normal">(pilih satu atau lebih)</span>
+                    </label>
+                    <div id="districts-loading" class="text-sm text-gray-400 italic">Memuat kecamatan...</div>
+                    <div id="districts-container" class="hidden border border-gray-300 rounded-lg p-3 max-h-52 overflow-y-auto space-y-1.5 bg-gray-50">
+                        {{-- checkbox kecamatan di-inject JS --}}
+                    </div>
+                    @error('districts')
+                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                    @enderror
+                    <p class="text-xs text-gray-400 mt-1">Pilih kecamatan cakupan area kerja kamu.</p>
+                </div>
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Alamat Lengkap</label>
                     <textarea name="address" rows="3"
@@ -138,6 +154,11 @@
 <script>
 const provinceSelect = document.getElementById('province');
 const citySelect = document.getElementById('city');
+const districtsWrapper = document.getElementById('districts-wrapper');
+const districtsLoading = document.getElementById('districts-loading');
+const districtsContainer = document.getElementById('districts-container');
+
+const oldDistricts = @json(old('districts', []));
 
 fetch('/api/provinces')
     .then(res => res.json())
@@ -160,6 +181,7 @@ fetch('/api/provinces')
 provinceSelect.addEventListener('change', function () {
     const id = this.options[this.selectedIndex].dataset.id;
     citySelect.innerHTML = '<option value="">-- Memuat kota... --</option>';
+    resetDistricts();
     if (!id) { citySelect.innerHTML = '<option value="">-- Pilih Provinsi dulu --</option>'; return; }
     fetch(`/api/regencies/${id}`)
         .then(res => res.json())
@@ -168,14 +190,68 @@ provinceSelect.addEventListener('change', function () {
             data.forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c.name;
+                opt.dataset.id = c.id;
                 opt.text = c.name;
                 @if(old('city'))
                 if (c.name === "{{ old('city') }}") opt.selected = true;
                 @endif
                 citySelect.appendChild(opt);
             });
+            @if(old('city'))
+            citySelect.dispatchEvent(new Event('change'));
+            @endif
         });
 });
+
+citySelect.addEventListener('change', function () {
+    const id = this.options[this.selectedIndex].dataset.id;
+    resetDistricts();
+    if (!id) return;
+
+    districtsWrapper.classList.remove('hidden');
+    districtsLoading.classList.remove('hidden');
+    districtsContainer.classList.add('hidden');
+
+    fetch(`/api/districts/${id}`)
+        .then(res => res.json())
+        .then(data => {
+            districtsLoading.classList.add('hidden');
+            districtsContainer.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                districtsContainer.innerHTML = '<p class="text-sm text-gray-400 italic">Kecamatan tidak ditemukan.</p>';
+            } else {
+                data.forEach(d => {
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-white rounded px-2 py-1 transition';
+
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.name = 'districts[]';
+                    cb.value = d.name;
+                    cb.className = 'rounded border-gray-300 text-blue-600 focus:ring-blue-500';
+                    if (oldDistricts.includes(d.name)) cb.checked = true;
+
+                    label.appendChild(cb);
+                    label.appendChild(document.createTextNode(d.name));
+                    districtsContainer.appendChild(label);
+                });
+            }
+
+            districtsContainer.classList.remove('hidden');
+        })
+        .catch(() => {
+            districtsLoading.textContent = 'Gagal memuat kecamatan.';
+        });
+});
+
+function resetDistricts() {
+    districtsWrapper.classList.add('hidden');
+    districtsContainer.innerHTML = '';
+    districtsContainer.classList.add('hidden');
+    districtsLoading.classList.remove('hidden');
+    districtsLoading.textContent = 'Memuat kecamatan...';
+}
 </script>
 </body>
 </html>

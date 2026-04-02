@@ -101,4 +101,18 @@ class TechnicianController extends Controller
         return redirect()->route('bp-technicians.approval')
             ->with('success', 'Teknisi berhasil di-reject.');
     }
+
+    public function toggleActive(Technician $technician)
+    {
+        $bp = $this->getMyBp();
+        abort_if($technician->bp_id !== $bp->id, 403);
+
+        $isActive = $technician->user->is_active;
+
+        $technician->user->update(['is_active' => $isActive ? 0 : 1]);
+
+        $message = $isActive ? 'Teknisi berhasil dinonaktifkan.' : 'Teknisi berhasil diaktifkan.';
+
+        return redirect()->route('bp-technicians.index')->with('success', $message);
+    }
 }
