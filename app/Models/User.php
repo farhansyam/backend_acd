@@ -43,6 +43,7 @@ class User extends Authenticatable
         'google_refresh_token',
         'fcm_token',
         'last_login_at',
+        'balance',
         'device_type',
     ];
 
@@ -60,5 +61,10 @@ class User extends Authenticatable
     public function phones()
     {
         return $this->hasMany(\App\Models\UserPhone::class);
+    }
+
+    public function businessPartner()
+    {
+        return $this->hasOne(\App\Models\BusinessPartner::class);
     }
 }

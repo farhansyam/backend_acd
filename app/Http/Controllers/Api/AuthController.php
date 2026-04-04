@@ -73,6 +73,8 @@ class AuthController extends Controller
                 'email'  => $user->email,
                 'avatar' => $user->avatar,
                 'role'   => $user->role,
+                'balance' => (float) $user->balance,
+
             ],
         ]);
     }
@@ -91,6 +93,7 @@ class AuthController extends Controller
                 'email'  => $user->email,
                 'avatar' => $user->avatar,
                 'role'   => $user->role,
+                'balance' => (float) $user->balance,
             ],
         ]);
     }

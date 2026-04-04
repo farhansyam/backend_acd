@@ -55,4 +55,9 @@ class Technician extends Model
     {
         return $this->status === 'rejected';
     }
+
+    public function balanceTransactions()
+    {
+        return $this->morphMany(\App\Models\BalanceTransaction::class, 'owner');
+    }
 }

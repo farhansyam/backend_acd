@@ -40,4 +40,9 @@ class BusinessPartner extends Model
     {
         return $this->hasMany(Technician::class, 'bp_id')->where('status', 'pending');
     }
+
+    public function balanceTransactions()
+    {
+        return $this->morphMany(\App\Models\BalanceTransaction::class, 'owner');
+    }
 }

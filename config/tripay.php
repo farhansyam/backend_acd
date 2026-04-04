@@ -8,7 +8,7 @@ return [
     'private_key'   => env('TRIPAY_PRIVATE_KEY', ''),
     'merchant_code' => env('TRIPAY_MERCHANT_CODE', ''),
     'sandbox'       => env('TRIPAY_SANDBOX', true),  // true = sandbox, false = production
-    'return_url'    => env('TRIPAY_RETURN_URL', 'https://8f17-103-151-246-46.ngrok-free.app/api/payment/callback'),
+    'return_url'    => env('TRIPAY_RETURN_URL', 'https://noegenetic-jiggly-lulu.ngrok-free.dev/api/payment/callback'),
 ];
 
 // ─── Tambahkan ini ke .env ────────────────────────────────────────

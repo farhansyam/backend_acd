@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
 {
@@ -59,5 +60,14 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function technician(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Technician::class);
+    }
+    public function assignment(): HasOne
+    {
+        return $this->hasOne(\App\Models\OrderAssignment::class);
     }
 }

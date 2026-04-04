@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);
     })
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
+        $schedule->command('balance:release')->hourly();
+        $schedule->command('orders:auto-complete')->everyThirtyMinutes(); // 
+    })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
