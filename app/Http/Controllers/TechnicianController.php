@@ -115,4 +115,31 @@ class TechnicianController extends Controller
 
         return redirect()->route('bp-technicians.index')->with('success', $message);
     }
+    // GET riwayat withdrawal
+    public function withdrawals(Request $request)
+    {
+        $user       = $request->user();
+        $technician = Technician::where('user_id', $user->id)->first();
+
+        abort_if(!$technician, 403, 'Bukan akun teknisi.');
+
+        $withdrawals = \App\Models\Withdrawal::where('technician_id', $technician->id)
+            ->orderByDesc('created_at')
+            ->take(10)
+            ->get()
+            ->map(fn($w) => [
+                'id'               => $w->id,
+                'amount'           => (float) $w->amount,
+                'bank_name'        => $w->bank_name,
+                'account_number'   => $w->account_number,
+                'account_name'     => $w->account_name,
+                'status'           => $w->status,
+                'status_label'     => $w->status_label,
+                'rejection_reason' => $w->rejection_reason,
+                'reviewed_at'      => $w->reviewed_at?->format('Y-m-d H:i'),
+                'created_at'       => $w->created_at->format('Y-m-d H:i'),
+            ]);
+
+        return response()->json(['withdrawals' => $withdrawals]);
+    }
 }

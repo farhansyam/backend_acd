@@ -25,6 +25,7 @@ class Technician extends Model
         'status',
         'rejection_reason',
         'approved_at',
+        'technician_id',
     ];
 
     protected $casts = [

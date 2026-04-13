@@ -9,7 +9,10 @@ use App\Models\Technician;
 use App\Services\BalanceService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use App\Mail\OrderConfirmedMail;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
+use App\Mail\WarrantyActiveMail;
 
 class AssignmentController extends Controller
 {
@@ -100,6 +103,7 @@ class AssignmentController extends Controller
         });
 
         // Notifikasi teknisi
+
         if ($technician->user->fcm_token) {
             $this->notificationService->notifyTechnicianAssigned(
                 $technician->user->fcm_token,
@@ -115,6 +119,7 @@ class AssignmentController extends Controller
                 $order->id
             );
         }
+        Mail::to($order->user->email)->queue(new OrderConfirmedMail($order));
 
         return response()->json(['message' => 'Teknisi berhasil di-assign.']);
     }
@@ -129,7 +134,7 @@ class AssignmentController extends Controller
         abort_if($order->technician_id !== $technician->id, 403, 'Bukan order kamu.');
         abort_if($order->status !== 'in_progress', 422, 'Order tidak dalam status in_progress.');
 
-        $autoCompleteAt = now()->addHours(2);
+        $autoCompleteAt = now()->addMinutes(30);
 
         $order->update([
             'status'           => 'waiting_confirmation',
@@ -162,9 +167,13 @@ class AssignmentController extends Controller
 
         DB::transaction(function () use ($order) {
             $order->update([
-                'status'           => 'completed',
-                'auto_complete_at' => null,
+                'status'               => 'warranty',
+                'warranty_started_at'  => now(),
+                'warranty_expires_at'  => now()->addDays(7),
+                'auto_complete_at'     => null,
             ]);
+
+            // Saldo teknisi cair 1x24 jam
             $this->balanceService->distributeOrderEarning($order);
         });
 
@@ -180,10 +189,12 @@ class AssignmentController extends Controller
                 $order->id
             );
         }
-
-        return response()->json(['message' => 'Pesanan dikonfirmasi selesai. Terima kasih!']);
+        Mail::to($order->user->email)->queue(new WarrantyActiveMail($order->fresh()));
+        return response()->json([
+            'message'              => 'Pesanan dikonfirmasi. Masa garansi 7 hari aktif.',
+            'warranty_expires_at'  => now()->addDays(7)->toIso8601String(),
+        ]);
     }
-
     public function orderHistory(Request $request)
     {
         $user = $request->user();

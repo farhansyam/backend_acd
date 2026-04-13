@@ -6,10 +6,13 @@ use App\Http\Controllers\Api\PhoneController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\DikariPayController;
+use App\Http\Controllers\Api\TechnicianController;
 use App\Http\Controllers\Api\AssignmentController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request; // ← sudah ada di file, cek lagi
 use Illuminate\Support\Facades\Http;
+use App\Http\Controllers\Api\RatingController;
+use App\Http\Controllers\Api\ComplaintController;
 
 // ─── Public ───────────────────────────────────────────────────────
 Route::post('/auth/google', [AuthController::class, 'googleLogin']);
@@ -30,6 +33,8 @@ Route::post('/payment/callback', [PaymentController::class, 'callback'])
 Route::post('/dikaripay/callback', [DikariPayController::class, 'topupCallback'])
     ->name('tripay.topup.callback');
 
+
+Route::post('/auth/login', [AuthController::class, 'login']);
 
 
 // ─── Protected (butuh Sanctum token) ─────────────────────────────
@@ -82,8 +87,30 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ─── Teknisi Routes ───────────────────────────────────────
     Route::prefix('technician')->group(function () {
-        Route::patch('/orders/{order}/complete',   [AssignmentController::class, 'technicianComplete']);
+        Route::get('/orders',                          [TechnicianController::class, 'myOrders']);
+        Route::get('/orders/{order}',                  [TechnicianController::class, 'showOrder']);
+        Route::patch('/orders/{order}/complete',       [AssignmentController::class, 'technicianComplete']);
+        Route::post('/orders/{order}/report',          [TechnicianController::class, 'submitReport']); // ← tambah
+        Route::get('/balance',                         [TechnicianController::class, 'balance']);
+        Route::post('/withdraw',                       [TechnicianController::class, 'withdraw']);
+        Route::get('/dashboard',                       [TechnicianController::class, 'dashboard']);
+
+        Route::get('/profile',           [TechnicianController::class, 'profile']);
+        Route::patch('/districts',       [TechnicianController::class, 'updateDistricts']);
+        Route::patch('/password',        [TechnicianController::class, 'updatePassword']);
+        Route::get('/withdrawals', [TechnicianController::class, 'withdrawals']);
     });
+
+    // Di dalam auth:sanctum middleware
+    Route::post('/orders/{order}/rating', [RatingController::class, 'store']);
+    Route::get('/orders/{order}/rating',  [RatingController::class, 'show']);
+
+
+    // Di dalam middleware auth:sanctum
+    Route::get('/complaints',                [ComplaintController::class, 'index']);
+    Route::post('/orders/{order}/complaint', [ComplaintController::class, 'store']);
+    Route::get('/complaints/{complaint}',    [ComplaintController::class, 'show']);
+
 
     Route::post('/auth/fcm-token', function (Request $request) {
         \Log::info('FCM route hit', ['user_id' => $request->user()?->id]);

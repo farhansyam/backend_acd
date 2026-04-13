@@ -107,4 +107,49 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Logout berhasil.']);
     }
+
+    public function login(Request $request)
+    {
+        $request->validate([
+            'email'    => 'required|email',
+            'password' => 'required|string',
+        ]);
+
+        $user = \App\Models\User::where('email', $request->email)->first();
+
+        if (!$user || !\Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Email atau password salah.'], 401);
+        }
+
+        // Pastikan role teknisi
+        if ($user->role !== 'teknisi') {
+            return response()->json(['message' => 'Akun ini bukan akun teknisi.'], 403);
+        }
+
+        // Cek status approval
+        $technician = \App\Models\Technician::where('user_id', $user->id)->first();
+        if (!$technician || $technician->status !== 'approved') {
+            return response()->json(['message' => 'Akun belum disetujui oleh Business Partner.'], 403);
+        }
+
+        $token = $user->createToken('mitra-token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login berhasil.',
+            'token'   => $token,
+            'user'    => [
+                'id'       => $user->id,
+                'name'     => $user->name,
+                'email'    => $user->email,
+                'role'     => $user->role,
+                'balance'  => (float) $technician->balance,
+                'grade'    => $technician->grade,
+                'bp_id'    => $technician->bp_id,
+                'tech_id'  => $technician->id,
+                'city'     => $technician->city,
+                'districts' => $technician->districts,
+                'status'   => $technician->status,
+            ],
+        ]);
+    }
 }

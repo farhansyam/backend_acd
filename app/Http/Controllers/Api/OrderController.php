@@ -169,7 +169,16 @@ class OrderController extends Controller
     public function show(Request $request, Order $order)
     {
         abort_if($order->user_id !== $request->user()->id, 403);
-        $order->load(['items.bpService.serviceType', 'address', 'phone', 'businessPartner']);
+        $order->load([
+            'items.bpService.serviceType',
+            'address',
+            'phone',
+            'businessPartner',
+            'report',
+            'rating',
+            'technician.user',
+            'complaint',
+        ]);
 
         return response()->json(['order' => $this->formatOrder($order)]);
     }
@@ -223,6 +232,34 @@ class OrderController extends Controller
             'payment_status'     => $order->payment_status,
             'tripay_payment_url' => $order->tripay_payment_url,
             'tripay_reference' => $order->tripay_reference,
+
+            'report' => $order->report ? [
+                'photo_before'       => url('storage/' . $order->report->photo_before),
+                'photo_after'        => url('storage/' . $order->report->photo_after),
+                'notes'              => $order->report->notes,
+                'filter_cleaned'     => $order->report->filter_cleaned,
+                'freon_checked'      => $order->report->freon_checked,
+                'drain_cleaned'      => $order->report->drain_cleaned,
+                'electrical_checked' => $order->report->electrical_checked,
+            ] : null,
+            'discount_amount'     => (float) $order->discount_amount,
+            'rating' => $order->rating ? [
+                'rating' => $order->rating->rating,
+                'review' => $order->rating->review,
+            ] : null,
+            'technician_name' => $order->technician?->user?->name ?? null,
+            'rating'          => $order->rating ? [
+                'rating' => $order->rating->rating,
+                'review' => $order->rating->review,
+            ] : null,
+            'complaint' => $order->complaint ? [
+                'id'           => $order->complaint->id,
+                'title'        => $order->complaint->title,
+                'status'       => $order->complaint->status,
+                'status_label' => $order->complaint->status_label,
+                'bp_comment'   => $order->complaint->bp_comment,
+                'created_at'   => $order->complaint->created_at->format('Y-m-d H:i'),
+            ] : null,
         ];
     }
 }

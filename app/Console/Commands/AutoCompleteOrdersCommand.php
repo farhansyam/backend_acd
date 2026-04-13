@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 class AutoCompleteOrdersCommand extends Command
 {
     protected $signature   = 'orders:auto-complete';
-    protected $description = 'Auto-complete orders that have passed the confirmation deadline';
+    protected $description = 'Auto-complete orders that have passed the 30 minute confirmation deadline';
 
     public function __construct(
         private BalanceService $balanceService,
@@ -30,24 +30,27 @@ class AutoCompleteOrdersCommand extends Command
         foreach ($orders as $order) {
             DB::transaction(function () use ($order) {
                 $order->update([
-                    'status'           => 'completed',
-                    'auto_complete_at' => null,
+                    'status'               => 'warranty',
+                    'warranty_started_at'  => now(),
+                    'warranty_expires_at'  => now()->addDays(7),
+                    'auto_complete_at'     => null,
                 ]);
 
+                // Saldo teknisi cair 1x24 jam
                 $this->balanceService->distributeOrderEarning($order);
             });
 
-            // Notifikasi customer
+            // Notifikasi customer — masa garansi aktif
             if ($order->user->fcm_token) {
-                $this->notificationService->notifyOrderCompleted(
+                $this->notificationService->notifyWarrantyActive(
                     $order->user->fcm_token,
                     $order->id
                 );
             }
 
-            $this->info("Auto-completed order #{$order->id}");
+            $this->info("Order #{$order->id} → warranty aktif.");
         }
 
-        $this->info("Done. {$orders->count()} orders auto-completed.");
+        $this->info("Done. {$orders->count()} orders diproses.");
     }
 }

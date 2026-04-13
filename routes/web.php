@@ -9,6 +9,9 @@ use App\Http\Controllers\BpServiceController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
+use App\Http\Controllers\ComplaintWebController;
+use App\Http\Controllers\WithdrawalController;
+use App\Http\Controllers\OrderAssignController;
 
 Route::get('/', function () {
     return view('auth.login');
@@ -52,6 +55,17 @@ Route::middleware(['auth', 'role:adminsuper,business_partner'])->group(function 
     Route::get('bp-approvals', [TechnicianController::class, 'approvalIndex'])->name('bp-technicians.approval');
     Route::post('bp-approvals/{technician}/approve', [TechnicianController::class, 'approve'])->name('bp-technicians.approve');
     Route::post('bp-approvals/{technician}/reject', [TechnicianController::class, 'reject'])->name('bp-technicians.reject');
+
+
+    // Order management
+    Route::get('orders', [OrderAssignController::class, 'index'])->name('orders.index');
+    Route::get('orders/{order}', [OrderAssignController::class, 'show'])->name('orders.show');
+    Route::post('orders/{order}/assign', [OrderAssignController::class, 'assign'])->name('orders.assign');
+
+
+    Route::get('complaints', [ComplaintWebController::class, 'index'])->name('complaints.index');
+    Route::get('complaints/{complaint}', [ComplaintWebController::class, 'show'])->name('complaints.show');
+    Route::patch('complaints/{complaint}', [ComplaintWebController::class, 'update'])->name('complaints.update');
 });
 
 
@@ -59,6 +73,15 @@ Route::middleware(['auth', 'role:adminsuper,business_partner'])->group(function 
 Route::middleware(['auth', 'role:adminsuper'])->group(function () {
     Route::resource('business-partners', BusinessPartnerController::class);
     Route::resource('service-types', ServiceTypeController::class);
+
+    Route::get('withdrawals', [WithdrawalController::class, 'index'])->name('withdrawals.index');
+    Route::post('withdrawals/{withdrawal}/approve', [WithdrawalController::class, 'approve'])->name('withdrawals.approve');
+    Route::post('withdrawals/{withdrawal}/reject', [WithdrawalController::class, 'reject'])->name('withdrawals.reject');
+
+    Route::get('payments',    [AdminController::class, 'payments'])->name('payments.index');
+    Route::get('customers',   [AdminController::class, 'customers'])->name('customers.index');
+    Route::get('technicians', [AdminController::class, 'technicians'])->name('technicians.index');
+    Route::get('wallets',     [AdminController::class, 'wallets'])->name('wallets.index');
 
     // tambah route admin only lainnya di sini
 });

@@ -41,14 +41,14 @@
                 </li>
 
                 <li>
-                    <a href="/customers" class="{{ request()->is('customers*') ? 'active-page' : '' }}">
+                    <a href="{{ route('customers.index') }} class="{{ request()->is('customers*') ? 'active-page' : '' }}">
                         <iconify-icon icon="flowbite:users-group-outline" class="menu-icon"></iconify-icon>
-                        <span>Akun Customer</span>
+                        <span> Customer</span>
                     </a>
                 </li>
 
                 <li>
-                    <a href="/technicians" class="{{ request()->is('technicians*') ? 'active-page' : '' }}">
+                    <a href="{{ route('technicians.index') }}" class="{{ request()->is('technicians*') ? 'active-page' : '' }}">
                         <iconify-icon icon="flowbite:users-group-outline" class="menu-icon"></iconify-icon>
                         <span>Akun Teknisi</span>
                     </a>
@@ -64,7 +64,7 @@
                 <li class="sidebar-menu-group-title">Operasional</li>
 
                 <li>
-                    <a href="/orders" class="{{ request()->is('orders*') ? 'active-page' : '' }}">
+                    <a href="{{ route('orders.index') }}" class="{{ request()->is('orders*') ? 'active-page' : '' }}">
                         <iconify-icon icon="hugeicons:invoice-03" class="menu-icon"></iconify-icon>
                         <span>Orders</span>
                     </a>
@@ -80,21 +80,21 @@
                 <li class="sidebar-menu-group-title">Keuangan</li>
 
                 <li>
-                    <a href="/payments" class="{{ request()->is('payments*') ? 'active-page' : '' }}">
+                    <a href="{{ route('payments.index') }}" class="{{ request()->is('payments*') ? 'active-page' : '' }}">
                         <iconify-icon icon="hugeicons:money-send-square" class="menu-icon"></iconify-icon>
                         <span>Pembayaran</span>
                     </a>
                 </li>
 
                 <li>
-                    <a href="/wallets" class="{{ request()->is('wallets*') ? 'active-page' : '' }}">
+                    <a href="{{ route('wallets.index') }}" class="{{ request()->is('wallets*') ? 'active-page' : '' }}">
                         <iconify-icon icon="hugeicons:bitcoin-circle" class="menu-icon"></iconify-icon>
                         <span>Wallet</span>
                     </a>
                 </li>
 
                 <li>
-                    <a href="/withdrawals" class="{{ request()->is('withdrawals*') ? 'active-page' : '' }}">
+                    <a href="{{ route('withdrawals.index') }}" class="{{ request()->is('withdrawals*') ? 'active-page' : '' }}">
                         <iconify-icon icon="solar:card-transfer-outline" class="menu-icon"></iconify-icon>
                         <span>Penarikan Saldo</span>
                     </a>
@@ -102,7 +102,6 @@
 
             @elseif(auth()->user()->role === 'business_partner')
 
-                {{-- Master Data BP --}}
                 <li class="sidebar-menu-group-title">Master Data</li>
 
                 <li>
@@ -120,39 +119,31 @@
                 </li>
 
                 <li>
-                    <a href="#" class="{{ request()->is('bp-customers*') ? 'active-page' : '' }}">
-                        <iconify-icon icon="flowbite:users-group-outline" class="menu-icon"></iconify-icon>
-                        <span>Customer Area</span>
-                    </a>
-                </li>
-
-                <li>
                     <a href="{{ route('bp-technicians.approval') }}" class="{{ request()->is('bp-approvals*') ? 'active-page' : '' }}">
                         <iconify-icon icon="lucide:user-check" class="menu-icon"></iconify-icon>
                         <span>Approval Teknisi</span>
                     </a>
                 </li>
 
-                {{-- Operasional BP --}}
                 <li class="sidebar-menu-group-title">Operasional</li>
 
                 <li>
-                    <a href="#" class="{{ request()->is('bp-orders*') ? 'active-page' : '' }}">
+                    <a href="{{ route('orders.index') }}" class="{{ request()->is('orders*') ? 'active-page' : '' }}">
                         <iconify-icon icon="hugeicons:invoice-03" class="menu-icon"></iconify-icon>
                         <span>Order Area Saya</span>
                     </a>
                 </li>
 
                 <li>
-                    <a href="#" class="{{ request()->is('bp-complaints*') ? 'active-page' : '' }}">
+                    <a href="{{ route('complaints.index') }}" class="{{ request()->is('complaints*') ? 'active-page' : '' }}">
                         <iconify-icon icon="mage:message-question-mark-round" class="menu-icon"></iconify-icon>
                         <span>Komplain Area Saya</span>
                     </a>
                 </li>
+                
 
             @endif
 
-            {{-- Pengaturan (semua role) --}}
             <li class="sidebar-menu-group-title">Pengaturan</li>
 
             <li>

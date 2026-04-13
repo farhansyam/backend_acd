@@ -123,4 +123,23 @@ class NotificationService
             ['type' => 'balance_released', 'order_id' => (string) $orderId, 'amount' => (string) $amount]
         );
     }
+
+    public function notifyComplaintReceived(string $fcmToken, int $orderId): void
+    {
+        $this->sendToDevice(
+            $fcmToken,
+            '⚠️ Komplain Baru',
+            "Order #{$orderId} mendapat komplain dari customer.",
+            ['type' => 'complaint_received', 'order_id' => (string) $orderId]
+        );
+    }
+    public function notifyWarrantyActive(string $fcmToken, int $orderId): void
+    {
+        $this->sendToDevice(
+            $fcmToken,
+            '🛡️ Masa Garansi Aktif',
+            "Pesanan #$orderId masuk masa garansi 7 hari. Ajukan komplain jika ada masalah.",
+            ['type' => 'warranty_active', 'order_id' => (string) $orderId]
+        );
+    }
 }

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Models\OrderReport;
 
 class Order extends Model
 {
@@ -28,13 +29,17 @@ class Order extends Model
         'paid_at',
         'status',
         'notes',
+        'technician_id',
+        'warranty_expires_at',
+        'warranty_started_at'
     ];
 
     protected $casts = [
-        'scheduled_date'     => 'date',
-        'apartment_surcharge' => 'decimal:2',
-        'subtotal'           => 'decimal:2',
-        'total_amount'       => 'decimal:2',
+        'scheduled_date'      => 'date',
+        'warranty_expires_at' => 'datetime', // ← tambah
+        'warranty_started_at' => 'datetime', // ← tambah
+        'auto_complete_at'    => 'datetime', // ← tambah kalau belum ada
+        'paid_at'             => 'datetime', // ← tambah kalau belum ada
     ];
 
     public function user(): BelongsTo
@@ -69,5 +74,19 @@ class Order extends Model
     public function assignment(): HasOne
     {
         return $this->hasOne(\App\Models\OrderAssignment::class);
+    }
+
+    public function report(): HasOne
+    {
+        return $this->hasOne(OrderReport::class);
+    }
+
+    public function rating(): HasOne
+    {
+        return $this->hasOne(\App\Models\OrderRating::class);
+    }
+    public function complaint(): HasOne
+    {
+        return $this->hasOne(\App\Models\Complaint::class);
     }
 }
