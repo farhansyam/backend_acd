@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\ComplaintController;
 // ─── Public ───────────────────────────────────────────────────────
 Route::post('/auth/google', [AuthController::class, 'googleLogin']);
 
+Route::get('/reviews', [RatingController::class, 'public']);
 
 // ─── API Wilayah (public) ─────────────────────────────────────────
 // Catatan: provinsi, kota, kecamatan sudah ada di web.php

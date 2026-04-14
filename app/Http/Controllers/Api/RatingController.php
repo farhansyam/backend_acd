@@ -68,4 +68,26 @@ class RatingController extends Controller
             ],
         ]);
     }
+
+    public function public()
+    {
+        $ratings = \App\Models\OrderRating::with(['order.user', 'technician.user'])
+            ->where('rating', '>=', 4)
+            ->whereNotNull('review')
+            ->where('review', '!=', '')
+            ->orderByDesc('created_at')
+            ->take(10)
+            ->get()
+            ->map(fn($r) => [
+                'id'             => $r->id,
+                'rating'         => $r->rating,
+                'review'         => $r->review,
+                'customer_name'  => $r->order?->user?->name ?? 'Customer',
+                'customer_avatar' => $r->order?->user?->avatar,
+                'technician_name' => $r->technician?->user?->name ?? 'Teknisi',
+                'created_at'     => $r->created_at->format('d M Y'),
+            ]);
+
+        return response()->json(['reviews' => $ratings]);
+    }
 }

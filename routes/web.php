@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\ComplaintWebController;
 use App\Http\Controllers\WithdrawalController;
+use App\Http\Controllers\CouponController;
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\OrderAssignController;
 
 Route::get('/', function () {
@@ -66,6 +68,10 @@ Route::middleware(['auth', 'role:adminsuper,business_partner'])->group(function 
     Route::get('complaints', [ComplaintWebController::class, 'index'])->name('complaints.index');
     Route::get('complaints/{complaint}', [ComplaintWebController::class, 'show'])->name('complaints.show');
     Route::patch('complaints/{complaint}', [ComplaintWebController::class, 'update'])->name('complaints.update');
+
+    Route::patch('bp-technicians/{technician}/update-grade', [TechnicianController::class, 'updateGrade'])->name('bp-technicians.update-grade');
+    Route::patch('bp-technicians/{technician}/suspend',      [TechnicianController::class, 'suspend'])->name('bp-technicians.suspend');
+    Route::patch('bp-technicians/{technician}/activate',     [TechnicianController::class, 'activate'])->name('bp-technicians.activate');
 });
 
 
@@ -82,6 +88,10 @@ Route::middleware(['auth', 'role:adminsuper'])->group(function () {
     Route::get('customers',   [AdminController::class, 'customers'])->name('customers.index');
     Route::get('technicians', [AdminController::class, 'technicians'])->name('technicians.index');
     Route::get('wallets',     [AdminController::class, 'wallets'])->name('wallets.index');
+
+    Route::resource('coupons', CouponController::class);
+    Route::post('coupons/{coupon}/toggle', [CouponController::class, 'toggleActive'])->name('coupons.toggle');
+    Route::get('coupons-generate', [CouponController::class, 'generateCode'])->name('coupons.generate');
 
     // tambah route admin only lainnya di sini
 });

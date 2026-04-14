@@ -2,27 +2,41 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BalanceTransaction;
 use App\Models\BusinessPartner;
+use App\Models\Order;
+use App\Models\OrderRating;
 use App\Models\Technician;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class TechnicianController extends Controller
 {
-    private function getMyBp()
+    private function getMyBp(): BusinessPartner
     {
         return BusinessPartner::where('user_id', Auth::id())->firstOrFail();
     }
 
+    private function isBp(): bool
+    {
+        return Auth::user()->role === 'business_partner';
+    }
+
     public function index()
     {
-        $bp = $this->getMyBp();
-
-        $technicians = Technician::with('user')
-            ->where('bp_id', $bp->id)
-            ->where('status', 'approved')
-            ->latest()
-            ->paginate(10);
+        if ($this->isBp()) {
+            $bp = $this->getMyBp();
+            $technicians = Technician::with('user')
+                ->where('bp_id', $bp->id)
+                ->where('status', 'approved')
+                ->latest()
+                ->paginate(10);
+        } else {
+            $technicians = Technician::with(['user', 'businessPartner'])
+                ->where('status', 'approved')
+                ->latest()
+                ->paginate(10);
+        }
 
         return view('bp-technicians.index', compact('technicians'));
     }
@@ -30,11 +44,94 @@ class TechnicianController extends Controller
     public function show(Technician $technician)
     {
         $bp = $this->getMyBp();
-
-        // Pastikan teknisi ini milik BP yang login
         abort_if($technician->bp_id !== $bp->id, 403);
 
-        return view('bp-technicians.show', compact('technician'));
+        $technician->load(['user', 'businessPartner']);
+
+        $totalCompleted = Order::where('technician_id', $technician->id)
+            ->where('status', 'completed')->count();
+
+        $completedThisMonth = Order::where('technician_id', $technician->id)
+            ->where('status', 'completed')
+            ->where('updated_at', '>=', now()->startOfMonth())->count();
+
+        $totalEarning = \App\Models\BalanceTransaction::where('owner_type', Technician::class)
+            ->where('owner_id', $technician->id)
+            ->whereIn('type', ['earning', 'release', 'rework_earning'])
+            ->sum('amount');
+
+        $recentRatings = \App\Models\OrderRating::with('order.user')
+            ->where('technician_id', $technician->id)
+            ->orderByDesc('created_at')->take(5)->get();
+
+        $recentOrders = Order::with('user')
+            ->where('technician_id', $technician->id)
+            ->orderByDesc('created_at')->take(5)->get();
+
+        return view('bp-technicians.show', compact(
+            'technician',
+            'totalCompleted',
+            'completedThisMonth',
+            'totalEarning',
+            'recentRatings',
+            'recentOrders'
+        ));
+    }
+
+    public function updateGrade(Request $request, Technician $technician)
+    {
+        if ($this->isBp()) {
+            $bp = $this->getMyBp();
+            abort_if($technician->bp_id !== $bp->id, 403);
+        }
+
+        $request->validate([
+            'grade' => 'required|in:beginner,medium,pro',
+        ]);
+
+        $oldGrade = $technician->grade;
+        $technician->update(['grade' => $request->grade]);
+
+        $action = $request->grade === 'pro' || $request->grade > $oldGrade
+            ? 'dinaikkan' : 'diubah';
+
+        return redirect()
+            ->route('bp-technicians.show', $technician)
+            ->with('success', "Grade teknisi berhasil {$action} menjadi " . ucfirst($request->grade) . ".");
+    }
+
+    public function suspend(Request $request, Technician $technician)
+    {
+        if ($this->isBp()) {
+            $bp = $this->getMyBp();
+            abort_if($technician->bp_id !== $bp->id, 403);
+        }
+
+        $request->validate([
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $technician->update(['status' => 'rejected', 'rejection_reason' => $request->reason]);
+        $technician->user->update(['is_active' => 0]);
+
+        return redirect()
+            ->route('bp-technicians.show', $technician)
+            ->with('success', 'Teknisi berhasil disuspend.');
+    }
+
+    public function activate(Technician $technician)
+    {
+        if ($this->isBp()) {
+            $bp = $this->getMyBp();
+            abort_if($technician->bp_id !== $bp->id, 403);
+        }
+
+        $technician->update(['status' => 'approved', 'rejection_reason' => null]);
+        $technician->user->update(['is_active' => 1]);
+
+        return redirect()
+            ->route('bp-technicians.show', $technician)
+            ->with('success', 'Teknisi berhasil diaktifkan kembali.');
     }
 
     public function destroy(Technician $technician)
@@ -49,7 +146,6 @@ class TechnicianController extends Controller
             ->with('success', 'Teknisi berhasil dinonaktifkan.');
     }
 
-    // Halaman approval (pending)
     public function approvalIndex()
     {
         $bp = $this->getMyBp();
@@ -108,14 +204,14 @@ class TechnicianController extends Controller
         abort_if($technician->bp_id !== $bp->id, 403);
 
         $isActive = $technician->user->is_active;
-
         $technician->user->update(['is_active' => $isActive ? 0 : 1]);
 
         $message = $isActive ? 'Teknisi berhasil dinonaktifkan.' : 'Teknisi berhasil diaktifkan.';
 
         return redirect()->route('bp-technicians.index')->with('success', $message);
     }
-    // GET riwayat withdrawal
+
+    // API — riwayat withdrawal teknisi
     public function withdrawals(Request $request)
     {
         $user       = $request->user();

@@ -27,29 +27,22 @@
                 <li class="sidebar-menu-group-title">Master Data</li>
 
                 <li>
-                    <a href="/users" class="{{ request()->is('users*') ? 'active-page' : '' }}">
-                        <iconify-icon icon="flowbite:users-group-outline" class="menu-icon"></iconify-icon>
-                        <span>Users</span>
-                    </a>
-                </li>
-
-                <li>
                     <a href="{{ route('business-partners.index') }}" class="{{ request()->is('business-partners*') ? 'active-page' : '' }}">
-                        <iconify-icon icon="flowbite:users-group-outline" class="menu-icon"></iconify-icon>
+                        <iconify-icon icon="lucide:building-2" class="menu-icon"></iconify-icon>
                         <span>Akun BP</span>
                     </a>
                 </li>
 
                 <li>
-                    <a href="{{ route('customers.index') }} class="{{ request()->is('customers*') ? 'active-page' : '' }}">
-                        <iconify-icon icon="flowbite:users-group-outline" class="menu-icon"></iconify-icon>
-                        <span> Customer</span>
+                    <a href="{{ route('customers.index') }}" class="{{ request()->is('customers*') ? 'active-page' : '' }}">
+                        <iconify-icon icon="lucide:users" class="menu-icon"></iconify-icon>
+                        <span>Akun Customer</span>
                     </a>
                 </li>
 
                 <li>
                     <a href="{{ route('technicians.index') }}" class="{{ request()->is('technicians*') ? 'active-page' : '' }}">
-                        <iconify-icon icon="flowbite:users-group-outline" class="menu-icon"></iconify-icon>
+                        <iconify-icon icon="lucide:user-cog" class="menu-icon"></iconify-icon>
                         <span>Akun Teknisi</span>
                     </a>
                 </li>
@@ -71,9 +64,9 @@
                 </li>
 
                 <li>
-                    <a href="/complaints" class="{{ request()->is('complaints*') ? 'active-page' : '' }}">
+                    <a href="{{ route('complaints.index') }}" class="{{ request()->is('complaints*') ? 'active-page' : '' }}">
                         <iconify-icon icon="mage:message-question-mark-round" class="menu-icon"></iconify-icon>
-                        <span>Komplain</span>
+                        <span>Komplain & Garansi</span>
                     </a>
                 </li>
 
@@ -97,6 +90,13 @@
                     <a href="{{ route('withdrawals.index') }}" class="{{ request()->is('withdrawals*') ? 'active-page' : '' }}">
                         <iconify-icon icon="solar:card-transfer-outline" class="menu-icon"></iconify-icon>
                         <span>Penarikan Saldo</span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="{{ route('coupons.index') }}" class="{{ request()->is('coupons*') ? 'active-page' : '' }}">
+                        <iconify-icon icon="lucide:ticket" class="menu-icon"></iconify-icon>
+                        <span>Kupon</span>
                     </a>
                 </li>
 
@@ -137,22 +137,27 @@
                 <li>
                     <a href="{{ route('complaints.index') }}" class="{{ request()->is('complaints*') ? 'active-page' : '' }}">
                         <iconify-icon icon="mage:message-question-mark-round" class="menu-icon"></iconify-icon>
-                        <span>Komplain Area Saya</span>
+                        <span>Komplain & Garansi</span>
                     </a>
                 </li>
-                
 
             @endif
 
-            <li class="sidebar-menu-group-title">Pengaturan</li>
+            {{-- Pengaturan (semua role) --}}
+            <li class="sidebar-menu-group-title">Akun</li>
 
             <li>
-                <a href="/settings" class="{{ request()->is('settings*') ? 'active-page' : '' }}">
-                    <iconify-icon icon="icon-park-outline:setting-two" class="menu-icon"></iconify-icon>
-                    <span>Pengaturan</span>
+                <a href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();"
+                   class="text-danger-600">
+                    <iconify-icon icon="lucide:log-out" class="menu-icon"></iconify-icon>
+                    <span>Logout</span>
                 </a>
             </li>
 
         </ul>
     </div>
 </aside>
+
+<form id="logout-form" action="{{ route('logout') }}" method="POST" class="hidden">
+    @csrf
+</form>

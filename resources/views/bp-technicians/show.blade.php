@@ -265,6 +265,193 @@
                 </div>
             </div>
         </div>
+        {{-- Tambahkan ini di bp-technicians/show.blade.php --}}
+{{-- Letakkan setelah section Dokumen (card border-0 terakhir di kolom kanan) --}}
+{{-- Dan tambahkan section Aksi Performa di kolom kiri --}}
+
+{{-- ===== TAMBAHAN DI KOLOM KIRI (setelah Kartu Info Akun) ===== --}}
+
+{{-- Stats Performa --}}
+<div class="card border-0">
+    <div class="card-header border-b border-neutral-200 dark:border-neutral-600 py-3 px-5">
+        <h6 class="font-semibold text-sm mb-0 flex items-center gap-2">
+            <iconify-icon icon="lucide:bar-chart-2" class="text-primary-600"></iconify-icon>
+            Statistik Performa
+        </h6>
+    </div>
+    <div class="card-body p-5 space-y-3">
+        <div class="flex justify-between items-center">
+            <span class="text-sm text-secondary-light">Total Order Selesai</span>
+            <span class="font-bold">{{ $totalCompleted }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+            <span class="text-sm text-secondary-light">Order Bulan Ini</span>
+            <span class="font-bold text-primary-600">{{ $completedThisMonth }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+            <span class="text-sm text-secondary-light">Rating Rata-rata</span>
+            <span class="font-bold text-warning-600">
+                {{ $technician->avg_rating > 0 ? '⭐ ' . number_format($technician->avg_rating, 1) : '-' }}
+            </span>
+        </div>
+        <div class="flex justify-between items-center">
+            <span class="text-sm text-secondary-light">Total Pendapatan</span>
+            <span class="font-bold">Rp {{ number_format($totalEarning, 0, ',', '.') }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+            <span class="text-sm text-secondary-light">Saldo Sekarang</span>
+            <span class="font-bold text-success-600">Rp {{ number_format($technician->balance, 0, ',', '.') }}</span>
+        </div>
+    </div>
+</div>
+
+{{-- Aksi Performa --}}
+@if($technician->isApproved())
+<div class="card border-0">
+    <div class="card-header border-b border-neutral-200 dark:border-neutral-600 py-3 px-5">
+        <h6 class="font-semibold text-sm mb-0 flex items-center gap-2">
+            <iconify-icon icon="lucide:settings" class="text-primary-600"></iconify-icon>
+            Aksi Performa
+        </h6>
+    </div>
+    <div class="card-body p-5 space-y-3">
+
+        {{-- Ubah Grade --}}
+        <form action="{{ route('bp-technicians.update-grade', $technician) }}" method="POST">
+            @csrf @method('PATCH')
+            <label class="text-xs text-secondary-light mb-1 block">Ubah Grade</label>
+            <div class="flex gap-2">
+                <select name="grade" class="form-control radius-8 text-sm flex-1">
+                    <option value="beginner" {{ $technician->grade === 'beginner' ? 'selected' : '' }}>Beginner (55%)</option>
+                    <option value="medium"   {{ $technician->grade === 'medium'   ? 'selected' : '' }}>Medium (65%)</option>
+                    <option value="pro"      {{ $technician->grade === 'pro'      ? 'selected' : '' }}>Pro (70%)</option>
+                </select>
+                <button type="submit" class="btn btn-primary-600 text-sm whitespace-nowrap">
+                    Simpan
+                </button>
+            </div>
+            <p class="text-xs text-secondary-light mt-1">Persentase pendapatan teknisi dari total order</p>
+        </form>
+
+        {{-- Suspend --}}
+        <button onclick="openSuspendModal()" class="btn btn-danger-600 w-full flex items-center justify-center gap-2 mt-2">
+            <iconify-icon icon="lucide:user-x"></iconify-icon>
+            Suspend Teknisi
+        </button>
+
+    </div>
+</div>
+@endif
+
+{{-- ===== TAMBAHAN DI KOLOM KANAN (setelah section Dokumen) ===== --}}
+
+{{-- Ulasan Terbaru --}}
+<div class="card border-0">
+    <div class="card-header border-b border-neutral-200 dark:border-neutral-600 py-4 px-6">
+        <h6 class="font-semibold mb-0 flex items-center gap-2">
+            <iconify-icon icon="lucide:star" class="text-warning-500"></iconify-icon>
+            Ulasan Terbaru
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        @forelse($recentRatings as $rating)
+        <div class="px-6 py-4 border-b border-neutral-100 dark:border-neutral-700 last:border-0">
+            <div class="flex items-start justify-between mb-2">
+                <div>
+                    <p class="font-medium text-sm">{{ $rating->order?->user?->name ?? '-' }}</p>
+                    <p class="text-xs text-secondary-light">Order #{{ $rating->order_id }}</p>
+                </div>
+                <div class="flex items-center gap-0.5">
+                    @for($i = 1; $i <= 5; $i++)
+                        <iconify-icon icon="lucide:star"
+                            class="{{ $i <= $rating->rating ? 'text-warning-500' : 'text-neutral-300' }}"
+                            style="font-size:14px"></iconify-icon>
+                    @endfor
+                    <span class="text-sm font-bold ml-1">{{ $rating->rating }}</span>
+                </div>
+            </div>
+            @if($rating->review)
+            <p class="text-sm text-secondary-light italic">"{{ $rating->review }}"</p>
+            @endif
+            <p class="text-xs text-secondary-light mt-1">{{ $rating->created_at->format('d M Y') }}</p>
+        </div>
+        @empty
+        <div class="px-6 py-8 text-center text-secondary-light text-sm">Belum ada ulasan.</div>
+        @endforelse
+    </div>
+</div>
+
+{{-- Order Terbaru --}}
+<div class="card border-0">
+    <div class="card-header border-b border-neutral-200 dark:border-neutral-600 py-4 px-6">
+        <h6 class="font-semibold mb-0">Order Terbaru</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table bordered-table style-two mb-0">
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Customer</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Tanggal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($recentOrders as $order)
+                    @php
+                        $sc = match($order->status) {
+                            'completed'  => 'bg-success-100 text-success-600',
+                            'cancelled'  => 'bg-danger-100 text-danger-600',
+                            'in_progress' => 'bg-purple-100 text-purple-600',
+                            'warranty'   => 'bg-success-100 text-success-600',
+                            'complained' => 'bg-danger-100 text-danger-600',
+                            default      => 'bg-neutral-100 text-neutral-500',
+                        };
+                    @endphp
+                    <tr>
+                        <td class="font-medium">#{{ $order->id }}</td>
+                        <td>{{ $order->user->name ?? '-' }}</td>
+                        <td>Rp {{ number_format($order->total_amount, 0, ',', '.') }}</td>
+                        <td>
+                            <span class="px-2 py-1 rounded-full text-xs font-medium {{ $sc }}">
+                                {{ $order->status }}
+                            </span>
+                        </td>
+                        <td class="text-sm text-secondary-light">
+                            {{ $order->created_at->format('d M Y') }}
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="5" class="text-center text-secondary-light py-4">Belum ada order.</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Suspend --}}
+<div id="suspendModal" class="fixed inset-0 bg-black/50 z-50 items-center justify-center" style="display:none">
+    <div class="bg-white dark:bg-neutral-800 rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl">
+        <h6 class="font-semibold text-lg mb-1">Suspend Teknisi</h6>
+        <p class="text-sm text-secondary-light mb-4">Tulis alasan suspend untuk <strong>{{ $technician->user->name }}</strong></p>
+        <form action="{{ route('bp-technicians.suspend', $technician) }}" method="POST">
+            @csrf @method('PATCH')
+            <div class="mb-4">
+                <textarea name="reason" rows="3" class="form-control"
+                    placeholder="Contoh: Sering tidak merespons order..." required></textarea>
+            </div>
+            <div class="flex gap-3">
+                <button type="submit" class="btn btn-danger-600 flex-1">Suspend</button>
+                <button type="button" onclick="closeSuspendModal()" class="btn btn-neutral-200 flex-1">Batal</button>
+            </div>
+        </form>
+    </div>
+</div>
 
         {{-- Catatan Tambahan (kalau ada) --}}
         @if($technician->extra_note)
@@ -339,6 +526,12 @@
 
 @push('scripts')
 <script>
+    function openSuspendModal() {
+    document.getElementById('suspendModal').style.display = 'flex';
+}
+function closeSuspendModal() {
+    document.getElementById('suspendModal').style.display = 'none';
+}
 function openApproveModal(id) {
     document.getElementById('approveForm').action = `/bp-approvals/${id}/approve`;
     document.getElementById('approveModal').style.removeProperty('display');
