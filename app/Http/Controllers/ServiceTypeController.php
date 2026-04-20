@@ -19,23 +19,6 @@ class ServiceTypeController extends Controller
         return view('service-types.create');
     }
 
-    public function store(Request $request)
-    {
-        $request->validate([
-            'name'        => 'required|string|max:255|unique:service_types,name',
-            'description' => 'nullable|string',
-            'is_active'   => 'required|in:0,1',
-        ]);
-
-        ServiceType::create([
-            'name'        => $request->name,
-            'description' => $request->description,
-            'is_active'   => $request->is_active,
-        ]);
-
-        return redirect()->route('service-types.index')
-            ->with('success', 'Jenis layanan berhasil ditambahkan.');
-    }
 
     public function show(ServiceType $serviceType)
     {
@@ -48,17 +31,39 @@ class ServiceTypeController extends Controller
         return view('service-types.edit', compact('serviceType'));
     }
 
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name'        => 'required|string|max:255|unique:service_types,name',
+            'description' => 'nullable|string',
+            'category' => 'required|in:cuci_reguler,pasang_baru,unit,relokasi,relokasi_bongkar,relokasi_pasang,perbaikan',
+            'is_active'   => 'required|in:0,1',
+        ]);
+
+        ServiceType::create([
+            'name'        => $request->name,
+            'description' => $request->description,
+            'category'    => $request->category,
+            'is_active'   => $request->is_active,
+        ]);
+
+        return redirect()->route('service-types.index')
+            ->with('success', 'Jenis layanan berhasil ditambahkan.');
+    }
+
     public function update(Request $request, ServiceType $serviceType)
     {
         $request->validate([
             'name'        => 'required|string|max:255|unique:service_types,name,' . $serviceType->id,
             'description' => 'nullable|string',
+            'category' => 'required|in:cuci_reguler,pasang_baru,unit,relokasi,relokasi_bongkar,relokasi_pasang,perbaikan',
             'is_active'   => 'required|in:0,1',
         ]);
 
         $serviceType->update([
             'name'        => $request->name,
             'description' => $request->description,
+            'category'    => $request->category,
             'is_active'   => $request->is_active,
         ]);
 

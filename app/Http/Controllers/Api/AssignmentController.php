@@ -174,7 +174,11 @@ class AssignmentController extends Controller
             ]);
 
             // Saldo teknisi cair 1x24 jam
-            $this->balanceService->distributeOrderEarning($order);
+            if ($order->order_type === 'relokasi') {
+                $this->balanceService->distributeRelocationEarning($order);
+            } else {
+                $this->balanceService->distributeOrderEarning($order);
+            }
         });
 
         // Notifikasi teknisi

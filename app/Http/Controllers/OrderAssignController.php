@@ -35,8 +35,7 @@ class OrderAssignController extends Controller
             $bp = $this->getMyBp();
             $orders = Order::with(['address', 'items.bpService.serviceType', 'technician.user'])
                 ->where('bp_id', $bp->id)
-                ->whereIn('status', ['confirmed', 'in_progress', 'waiting_confirmation', 'completed'])
-                ->where('payment_status', 'paid')
+
                 ->orderByDesc('created_at')
                 ->paginate(15);
         }
@@ -54,7 +53,7 @@ class OrderAssignController extends Controller
             abort_if($order->bp_id !== $bp->id, 403);
         }
 
-        $order->load(['address', 'items.bpService.serviceType', 'technician.user', 'user']);
+        $order->load(['address', 'items.bpService.serviceType', 'technician.user', 'user', 'secondTechnician.user']);
 
         $technicians = collect();
         if ($user->role === 'adminsuper') {
@@ -76,20 +75,14 @@ class OrderAssignController extends Controller
     // ─── Assign teknisi ke order ──────────────────────────────
     public function assign(Request $request, Order $order)
     {
-
-        \Log::info('Assign attempt', [
-            'order_id'       => $order->id,
-            'order_status'   => $order->status,
-            'technician_id'  => $request->technician_id,
-            'user_id'        => Auth::id(),
-        ]);
         $request->validate([
-            'technician_id' => 'required|exists:technicians,id',
-            'notes'         => 'nullable|string|max:500',
+            'technician_id'        => 'required|exists:technicians,id',
+            'second_technician_id' => 'nullable|exists:technicians,id',
+            'split_technician'     => 'nullable',
+            'notes'                => 'nullable|string|max:500',
         ]);
 
         $user = Auth::user();
-
         if ($user->role !== 'adminsuper') {
             $bp = $this->getMyBp();
             abort_if($order->bp_id !== $bp->id, 403);
@@ -101,19 +94,20 @@ class OrderAssignController extends Controller
             422,
             'Order tidak bisa di-assign.'
         );
-        abort_if($order->technician_id, 422, 'Order sudah di-assign.');
-
-
 
         $technician = Technician::with('user')
             ->where('id', $request->technician_id)
             ->where('status', 'approved')
             ->firstOrFail();
 
-        DB::transaction(function () use ($order, $technician, $request) {
+        $isSplit = (bool) $request->split_technician;
+
+        DB::transaction(function () use ($order, $technician, $request, $isSplit) {
             $order->update([
-                'technician_id' => $technician->id,
-                'status'        => 'in_progress',
+                'technician_id'        => $technician->id,
+                'second_technician_id' => $isSplit ? $request->second_technician_id : null,
+                'split_technician'     => $isSplit,
+                'status'               => 'in_progress',
             ]);
 
             OrderAssignment::create([
@@ -125,7 +119,7 @@ class OrderAssignController extends Controller
             ]);
         });
 
-        // Notifikasi ke teknisi
+        // Notif teknisi bongkar
         if ($technician->user->fcm_token) {
             $this->notificationService->notifyTechnicianAssigned(
                 $technician->user->fcm_token,
@@ -134,7 +128,19 @@ class OrderAssignController extends Controller
             );
         }
 
-        // Notifikasi ke customer
+        // Notif teknisi pasang (kalau beda)
+        if ($isSplit && $request->second_technician_id) {
+            $secondTech = Technician::with('user')->find($request->second_technician_id);
+            if ($secondTech?->user?->fcm_token) {
+                $this->notificationService->notifyTechnicianAssigned(
+                    $secondTech->user->fcm_token,
+                    $order->id,
+                    $order->address->city_name ?? '-'
+                );
+            }
+        }
+
+        // Notif customer
         if ($order->user->fcm_token) {
             $this->notificationService->notifyOrderConfirmed(
                 $order->user->fcm_token,
@@ -142,8 +148,25 @@ class OrderAssignController extends Controller
             );
         }
 
-        return redirect()
-            ->route('orders.show', $order)
-            ->with('success', 'Teknisi berhasil di-assign ke order ini.');
+        return redirect()->route('orders.show', $order)
+            ->with('success', 'Teknisi berhasil di-assign.');
+    }
+    public function setTransportFee(Request $request, Order $order)
+    {
+        $request->validate([
+            'transport_fee' => 'required|numeric|min:0',
+        ]);
+
+        $order->update([
+            'transport_fee' => $request->transport_fee,
+            'total_amount'  => $order->subtotal + $order->apartment_surcharge + $request->transport_fee,
+            'status'        => 'pending_transport_fee_set',
+        ]);
+
+        // Kirim notif FCM ke customer
+        // NotificationService::send($order->user, 'Biaya Transportasi Relokasi', ...);
+
+        return redirect()->route('orders.show', $order)
+            ->with('success', 'Biaya transportasi berhasil dikirim ke customer.');
     }
 }

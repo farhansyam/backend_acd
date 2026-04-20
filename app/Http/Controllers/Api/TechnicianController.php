@@ -27,11 +27,12 @@ class TechnicianController extends Controller
 
         abort_if(!$technician, 403, 'Bukan akun teknisi.');
 
-        $orders = Order::with(['items.bpService.serviceType', 'address', 'phone', 'user'])
+        $orders = Order::with(['items.bpService.serviceType', 'address', 'originAddress', 'phone', 'user'])
             ->where('technician_id', $technician->id)
             ->whereIn('status', [
                 'confirmed',
                 'in_progress',
+                'disassembled',      // ← tambah
                 'waiting_confirmation',
                 'completed',
             ])
@@ -52,7 +53,7 @@ class TechnicianController extends Controller
         abort_if(!$technician, 403, 'Bukan akun teknisi.');
         abort_if($order->technician_id !== $technician->id, 403, 'Bukan order kamu.');
 
-        $order->load(['items.bpService.serviceType', 'address', 'phone', 'user', 'report']);
+        $order->load(['items.bpService.serviceType', 'address', 'originAddress', 'phone', 'user', 'report']);
 
         return response()->json(['order' => $this->formatOrder($order)]);
     }
@@ -61,27 +62,90 @@ class TechnicianController extends Controller
     public function submitReport(Request $request, Order $order)
     {
         $request->validate([
-            'photo_before'       => 'required|image|max:5120',
-            'photo_after'        => 'required|image|max:5120',
-            'notes'              => 'nullable|string|max:1000',
-            'filter_cleaned'     => 'boolean',
-            'freon_checked'      => 'boolean',
-            'drain_cleaned'      => 'boolean',
-            'electrical_checked' => 'boolean',
+            'photo_before'        => 'required|image|max:5120',
+            'photo_after'         => 'required|image|max:5120',
+            'notes'               => 'nullable|string|max:1000',
+            'filter_cleaned'      => 'boolean',
+            'freon_checked'       => 'boolean',
+            'drain_cleaned'       => 'boolean',
+            'electrical_checked'  => 'boolean',
+            'unit_installed'      => 'boolean',
+            'piping_neat'         => 'boolean',
+            'cooling_test'        => 'boolean',
+            'remote_working'      => 'boolean',
+            'ac_dismantled'       => 'boolean',
+            'unit_safe_transport' => 'boolean',
         ]);
 
         $user       = $request->user();
         $technician = Technician::where('user_id', $user->id)->first();
 
         abort_if(!$technician, 403, 'Bukan akun teknisi.');
-        abort_if($order->technician_id !== $technician->id, 403, 'Bukan order kamu.');
+
+        $isSecondTechnician = $order->second_technician_id === $technician->id;
+        $isMainTechnician   = $order->technician_id === $technician->id;
+
+        abort_if(!$isMainTechnician && !$isSecondTechnician, 403, 'Bukan order kamu.');
+
+        $validStatuses = ['confirmed', 'in_progress'];
+        if ($order->split_technician) $validStatuses[] = 'disassembled';
         abort_if(
-            !in_array($order->status, ['confirmed', 'in_progress']),
+            !in_array($order->status, $validStatuses),
             422,
             'Order tidak dalam status yang bisa diselesaikan.'
         );
 
-        // Upload foto
+        // Relokasi beda lokasi dengan 2 teknisi berbeda
+        $isRelokasi2Teknisi = $order->split_technician && $order->order_type === 'relokasi';
+
+        // Relokasi 1 lokasi atau teknisi sama = selesai sekaligus (laporan gabungan)
+        $isSameLocationRelokasi = $order->order_type === 'relokasi' && !$order->split_technician;
+
+        // ─── Teknisi Bongkar (beda lokasi, 2 teknisi) ────────
+        if ($isRelokasi2Teknisi && $isMainTechnician && $order->status !== 'disassembled') {
+            $photoBefore = $request->file('photo_before')
+                ->store("order-reports/{$order->id}", 'public');
+            $photoAfter = $request->file('photo_after')
+                ->store("order-reports/{$order->id}", 'public');
+
+            DB::transaction(function () use ($order, $technician, $request, $photoBefore, $photoAfter) {
+                OrderReport::create([
+                    'order_id'            => $order->id,
+                    'technician_id'       => $technician->id,
+                    'photo_before'        => $photoBefore,
+                    'photo_after'         => $photoAfter,
+                    'notes'               => $request->notes,
+                    'filter_cleaned'      => false,
+                    'freon_checked'       => false,
+                    'drain_cleaned'       => false,
+                    'electrical_checked'  => $request->boolean('electrical_checked'),
+                    'unit_installed'      => false,
+                    'piping_neat'         => false,
+                    'cooling_test'        => false,
+                    'remote_working'      => false,
+                    'ac_dismantled'       => $request->boolean('ac_dismantled'),
+                    'unit_safe_transport' => false,
+                ]);
+
+                $order->update(['status' => 'disassembled']);
+            });
+
+            // Notif teknisi pasang
+            $secondTech = Technician::with('user')->find($order->second_technician_id);
+            if ($secondTech?->user?->fcm_token) {
+                $this->notificationService->notifyTechnicianAssigned(
+                    $secondTech->user->fcm_token,
+                    $order->id,
+                    $order->address->city_name ?? '-'
+                );
+            }
+
+            return response()->json([
+                'message' => 'Laporan bongkar berhasil dikirim. Menunggu teknisi pasang.',
+            ]);
+        }
+
+        // ─── Laporan Gabungan (1 lokasi, teknisi sama, atau teknisi pasang) ──
         $photoBefore = $request->file('photo_before')
             ->store("order-reports/{$order->id}", 'public');
         $photoAfter = $request->file('photo_after')
@@ -95,34 +159,53 @@ class TechnicianController extends Controller
             $request,
             $photoBefore,
             $photoAfter,
-            $autoCompleteAt
+            $autoCompleteAt,
+            $isRelokasi2Teknisi
         ) {
-            // Simpan laporan
-            OrderReport::create([
-                'order_id'           => $order->id,
-                'technician_id'      => $technician->id,
-                'photo_before'       => $photoBefore,
-                'photo_after'        => $photoAfter,
-                'notes'              => $request->notes,
-                'filter_cleaned'     => $request->boolean('filter_cleaned'),
-                'freon_checked'      => $request->boolean('freon_checked'),
-                'drain_cleaned'      => $request->boolean('drain_cleaned'),
-                'electrical_checked' => $request->boolean('electrical_checked'),
-            ]);
+            $existingReport = OrderReport::where('order_id', $order->id)->first();
 
-            // Update status order
+            if ($existingReport && $isRelokasi2Teknisi) {
+                // Update laporan bongkar dengan data pasang (teknisi pasang submit)
+                $existingReport->update([
+                    'photo_after'         => $photoAfter,
+                    'notes'               => $request->notes ?? $existingReport->notes,
+                    'electrical_checked'  => $request->boolean('electrical_checked'),
+                    'unit_installed'      => $request->boolean('unit_installed'),
+                    'cooling_test'        => $request->boolean('cooling_test'),
+                    'unit_safe_transport' => $request->boolean('unit_safe_transport'),
+                ]);
+            } else {
+                // Laporan baru (1 lokasi, teknisi sama, atau non-relokasi)
+                OrderReport::create([
+                    'order_id'            => $order->id,
+                    'technician_id'       => $technician->id,
+                    'photo_before'        => $photoBefore,
+                    'photo_after'         => $photoAfter,
+                    'notes'               => $request->notes,
+                    'filter_cleaned'      => $request->boolean('filter_cleaned'),
+                    'freon_checked'       => $request->boolean('freon_checked'),
+                    'drain_cleaned'       => $request->boolean('drain_cleaned'),
+                    'electrical_checked'  => $request->boolean('electrical_checked'),
+                    'unit_installed'      => $request->boolean('unit_installed'),
+                    'piping_neat'         => $request->boolean('piping_neat'),
+                    'cooling_test'        => $request->boolean('cooling_test'),
+                    'remote_working'      => $request->boolean('remote_working'),
+                    'ac_dismantled'       => $request->boolean('ac_dismantled'),
+                    'unit_safe_transport' => $request->boolean('unit_safe_transport'),
+                ]);
+            }
+
             $order->update([
                 'status'           => 'waiting_confirmation',
                 'auto_complete_at' => $autoCompleteAt,
             ]);
 
-            // Update assignment
             OrderAssignment::where('order_id', $order->id)
                 ->where('status', 'assigned')
                 ->update(['status' => 'completed', 'completed_at' => now()]);
         });
 
-        // Notifikasi ke customer
+        // Notif customer
         if ($order->user->fcm_token) {
             $this->notificationService->notifyWaitingConfirmation(
                 $order->user->fcm_token,
@@ -287,15 +370,30 @@ class TechnicianController extends Controller
             'total_amount'     => (float) $order->total_amount,
             'auto_complete_at' => $order->auto_complete_at?->toIso8601String(),
             'notes'            => $order->notes,
-            'customer'         => [
+            'order_type'       => $order->order_type,
+            'relocation_type'  => $order->relocation_type,
+            'transport_fee'    => (float) $order->transport_fee,
+            'split_technician' => (bool) $order->split_technician,
+            'origin_address'   => $order->originAddress ? [
+                'label'        => $order->originAddress->label ?? '-',
+                'full_address' => $order->originAddress->formatted_address ?? '-',
+            ] : null,
+
+            // ← tambah field relokasi
+            'order_type'       => $order->order_type,
+            'relocation_type'  => $order->relocation_type,
+            'transport_fee'    => (float) $order->transport_fee,
+            'split_technician' => (bool) $order->split_technician,
+
+            'customer' => [
                 'name'  => $order->user?->name ?? '-',
                 'email' => $order->user?->email ?? '-',
             ],
-            'phone'            => [
+            'phone' => [
                 'label'        => $order->phone?->label ?? '-',
                 'phone_number' => $order->phone?->phone_number ?? '-',
             ],
-            'address'          => [
+            'address' => [
                 'label'        => $order->address?->label ?? '-',
                 'full_address' => $order->address?->formatted_address ?? '-',
                 'city'         => $order->address?->city_name ?? '-',
@@ -303,22 +401,39 @@ class TechnicianController extends Controller
                 'latitude'     => $order->address?->latitude,
                 'longitude'    => $order->address?->longitude,
             ],
-            'items'            => $order->items->map(fn($item) => [
+
+            // ← tambah origin_address
+            'origin_address' => $order->originAddress ? [
+                'label'        => $order->originAddress->label ?? '-',
+                'full_address' => $order->originAddress->formatted_address ?? '-',
+                'latitude'     => $order->originAddress->latitude,
+                'longitude'    => $order->originAddress->longitude,
+            ] : null,
+
+            'items' => $order->items->map(fn($item) => [
+                'id'         => $item->id,
                 'name'       => $item->bpService?->serviceType?->name ?? '-',
+                'category'   => $item->bpService?->serviceType?->category ?? 'cuci_reguler',
                 'quantity'   => $item->quantity,
                 'unit_price' => (float) $item->unit_price,
                 'subtotal'   => (float) $item->subtotal,
             ]),
-            'report'           => $report ? [
-                'photo_before'       => Storage::url($report->photo_before),
-                'photo_after'        => Storage::url($report->photo_after),
-                'notes'              => $report->notes,
-                'filter_cleaned'     => $report->filter_cleaned,
-                'freon_checked'      => $report->freon_checked,
-                'drain_cleaned'      => $report->drain_cleaned,
-                'electrical_checked' => $report->electrical_checked,
+            'report' => $order->report ? [
+                'photo_before'        => url('storage/' . $order->report->photo_before),
+                'photo_after'         => url('storage/' . $order->report->photo_after),
+                'notes'               => $order->report->notes,
+                'filter_cleaned'      => $order->report->filter_cleaned,
+                'freon_checked'       => $order->report->freon_checked,
+                'drain_cleaned'       => $order->report->drain_cleaned,
+                'electrical_checked'  => $order->report->electrical_checked,
+                'unit_installed'      => $order->report->unit_installed,
+                'piping_neat'         => $order->report->piping_neat,
+                'cooling_test'        => $order->report->cooling_test,
+                'remote_working'      => $order->report->remote_working,
+                'ac_dismantled'       => $order->report->ac_dismantled,
+                'unit_safe_transport' => $order->report->unit_safe_transport,
             ] : null,
-            'created_at'       => $order->created_at?->format('Y-m-d H:i'),
+            'created_at' => $order->created_at?->format('Y-m-d H:i'),
         ];
     }
 

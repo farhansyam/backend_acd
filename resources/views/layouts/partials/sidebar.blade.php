@@ -99,6 +99,20 @@
                         <span>Kupon</span>
                     </a>
                 </li>
+             <li class="sidebar-menu-group-title">Settings</li>
+
+                <li>
+                    <a href="{{ route('settings.index') }}" class="{{ request()->is('settings*') ? 'active-page' : '' }}">
+                        <iconify-icon icon="lucide:settings" class="menu-icon"></iconify-icon>
+                        <span>Kontak</span>
+                    </a>
+                </li>   
+                <li>
+                    <a href="{{ route('articles.index') }}" class="{{ request()->is('articles*') ? 'active-page' : '' }}">
+                        <iconify-icon icon="lucide:newspaper" class="menu-icon"></iconify-icon>
+                        <span>Promo & Tips</span>
+                    </a>
+                </li> 
 
             @elseif(auth()->user()->role === 'business_partner')
 

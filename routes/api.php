@@ -19,6 +19,36 @@ Route::post('/auth/google', [AuthController::class, 'googleLogin']);
 
 Route::get('/reviews', [RatingController::class, 'public']);
 
+Route::get('/settings/wa', function () {
+    return response()->json([
+        'wa_ac_industri'         => \App\Models\Setting::get('wa_ac_industri'),
+        'wa_cs'                  => \App\Models\Setting::get('wa_cs'),
+        'wa_message_ac_industri' => \App\Models\Setting::get('wa_message_ac_industri', 'Halo Ac Dikari, saya ingin konsultasi mengenai AC Industri'),
+        'wa_message_cs'          => \App\Models\Setting::get('wa_message_cs', 'Halo AC Dikari, saya butuh bantuan'),
+    ]);
+});
+
+Route::get('/articles', function () {
+    return response()->json([
+        'articles' => \App\Models\Article::where('is_active', true)
+            ->where(function ($q) {
+                $q->whereNull('expired_at')->orWhere('expired_at', '>', now());
+            })
+            ->orderByDesc('created_at')
+            ->take(10)
+            ->get()
+            ->map(fn($a) => [
+                'id'        => $a->id,
+                'title'     => $a->title,
+                'subtitle'  => $a->subtitle,
+                'type'      => $a->type,
+                'color_hex' => $a->color_hex,
+                'image_url' => $a->image_url,
+                'content'   => $a->content,
+            ]),
+    ]);
+});
+
 // ─── API Wilayah (public) ─────────────────────────────────────────
 // Catatan: provinsi, kota, kecamatan sudah ada di web.php
 // Tambahkan kelurahan/desa di sini
@@ -84,6 +114,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/orders/{order}/complete', [AssignmentController::class, 'complete']);
         Route::get('/balance',                   [AssignmentController::class, 'balance']);
     });
+
+    Route::patch('/orders/{order}/confirm-transport', [OrderController::class, 'confirmTransportFee']);
 
 
     // ─── Teknisi Routes ───────────────────────────────────────

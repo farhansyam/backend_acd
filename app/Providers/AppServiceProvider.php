@@ -26,6 +26,6 @@ class AppServiceProvider extends ServiceProvider
 
         // Atau lebih simpel, force selalu HTTPS:
         // URL::forceScheme('https');
-        URL::forceScheme('http');
+        URL::forceScheme('https');
     }
 }

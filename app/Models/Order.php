@@ -31,7 +31,13 @@ class Order extends Model
         'notes',
         'technician_id',
         'warranty_expires_at',
-        'warranty_started_at'
+        'warranty_started_at',
+        'relocation_type',
+        'origin_address_id',
+        'transport_fee',
+        'split_technician',
+        'second_technician_id',
+        'order_type',
     ];
 
     protected $casts = [
@@ -40,6 +46,9 @@ class Order extends Model
         'warranty_started_at' => 'datetime', // ← tambah
         'auto_complete_at'    => 'datetime', // ← tambah kalau belum ada
         'paid_at'             => 'datetime', // ← tambah kalau belum ada
+        'split_technician' => 'boolean',
+        'transport_fee'    => 'decimal:2',
+
     ];
 
     public function user(): BelongsTo
@@ -88,5 +97,33 @@ class Order extends Model
     public function complaint(): HasOne
     {
         return $this->hasOne(\App\Models\Complaint::class);
+    }
+
+    public function originAddress()
+    {
+        return $this->belongsTo(Address::class, 'origin_address_id');
+    }
+
+    public function secondTechnician()
+    {
+        return $this->belongsTo(Technician::class, 'second_technician_id');
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            'pending'                   => 'Menunggu Konfirmasi',
+            'pending_transport_fee'     => 'Menunggu Biaya Transportasi',
+            'pending_transport_fee_set' => 'Konfirmasi Biaya Transportasi',
+            'confirmed'                 => 'Dikonfirmasi',
+            'in_progress'               => 'Sedang Dikerjakan',
+            'waiting_confirmation'      => 'Menunggu Konfirmasi Customer',
+            'warranty'                  => 'Masa Garansi',
+            'complained'                => 'Dikomplain',
+            'completed'                 => 'Selesai',
+            'disassembled' => 'Sudah Dibongkar, Menunggu Pemasangan',
+            'cancelled'                 => 'Dibatalkan',
+            default                     => $this->status,
+        };
     }
 }

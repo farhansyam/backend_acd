@@ -21,7 +21,8 @@ class RatingController extends Controller
         $user = $request->user();
 
         abort_if($order->user_id !== $user->id, 403, 'Bukan order kamu.');
-        abort_if($order->status !== 'completed', 422, 'Order belum selesai.');
+        // Jadi:
+        abort_if(!in_array($order->status, ['warranty', 'completed', 'complained']), 422, 'Order belum selesai.');
         abort_if($order->rating()->exists(), 422, 'Rating sudah diberikan.');
         abort_if(!$order->technician_id, 422, 'Order belum punya teknisi.');
 

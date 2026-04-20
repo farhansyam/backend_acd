@@ -49,7 +49,7 @@ class DashboardController extends Controller
         $totalCustomers    = User::where('role', 'customer')->count();
         $totalTechnicians  = Technician::where('status', 'approved')->count();
         $pendingWithdrawals = Withdrawal::where('status', 'pending')->count();
-        $openComplaints    = Complaint::whereIn('status', ['open', 'in_review'])->count();
+        $openComplaints    = Complaint::whereIn('status', ['open', 'in_review', 'rework_assigned'])->count();
 
         // ─── Revenue Chart (12 bulan terakhir) ───────────────
         $revenueChart = Order::where('payment_status', 'paid')

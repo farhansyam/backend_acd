@@ -13,6 +13,8 @@ use App\Http\Controllers\ComplaintWebController;
 use App\Http\Controllers\WithdrawalController;
 use App\Http\Controllers\CouponController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\SettingController;
+use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\OrderAssignController;
 
 Route::get('/', function () {
@@ -64,6 +66,8 @@ Route::middleware(['auth', 'role:adminsuper,business_partner'])->group(function 
     Route::get('orders/{order}', [OrderAssignController::class, 'show'])->name('orders.show');
     Route::post('orders/{order}/assign', [OrderAssignController::class, 'assign'])->name('orders.assign');
 
+    Route::post('orders/{order}/set-transport-fee', [OrderAssignController::class, 'setTransportFee'])->name('orders.setTransportFee');
+    Route::post('orders/{order}/assign', [OrderAssignController::class, 'assign'])->name('orders.assign');
 
     Route::get('complaints', [ComplaintWebController::class, 'index'])->name('complaints.index');
     Route::get('complaints/{complaint}', [ComplaintWebController::class, 'show'])->name('complaints.show');
@@ -93,5 +97,10 @@ Route::middleware(['auth', 'role:adminsuper'])->group(function () {
     Route::post('coupons/{coupon}/toggle', [CouponController::class, 'toggleActive'])->name('coupons.toggle');
     Route::get('coupons-generate', [CouponController::class, 'generateCode'])->name('coupons.generate');
 
+    Route::get('settings',  [SettingController::class, 'index'])->name('settings.index');
+    Route::put('settings',  [SettingController::class, 'update'])->name('settings.update');
+
+    Route::resource('articles', ArticleController::class)->except(['show']);
+    Route::post('articles/{article}/toggle', [ArticleController::class, 'toggleActive'])->name('articles.toggle');
     // tambah route admin only lainnya di sini
 });

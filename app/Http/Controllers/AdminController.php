@@ -19,7 +19,15 @@ class AdminController extends Controller
             ->orderByDesc('paid_at')
             ->paginate(20);
 
-        return view('admin.payments', compact('orders'));
+        // Tambah data rework
+        $reworkCosts = \App\Models\Complaint::with(['order', 'reworkTechnician.user'])
+            ->where('rework_cost', '>', 0)
+            ->orderByDesc('resolved_at')
+            ->get(); // ← ganti paginate ke get
+
+        $totalReworkCost = \App\Models\Complaint::where('rework_cost', '>', 0)->sum('rework_cost');
+
+        return view('admin.payments', compact('orders', 'reworkCosts', 'totalReworkCost'));
     }
 
     // ─── List semua customer ──────────────────────────────────

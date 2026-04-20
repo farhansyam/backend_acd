@@ -26,6 +26,18 @@
 
         <form action="{{ route('service-types.store') }}" method="POST">
             @csrf
+            <div>
+                <label class="form-label fw-semibold text-sm">Kategori <span class="text-danger-600">*</span></label>
+          <select name="category" class="form-control radius-8" required>
+                <option value="cuci_reguler"      {{ old('category', $serviceType->category ?? '') === 'cuci_reguler'      ? 'selected' : '' }}>Cuci Reguler</option>
+                <option value="pasang_baru"       {{ old('category', $serviceType->category ?? '') === 'pasang_baru'       ? 'selected' : '' }}>Pasang Baru</option>
+                <option value="unit"              {{ old('category', $serviceType->category ?? '') === 'unit'              ? 'selected' : '' }}>Unit AC</option>
+                <option value="relokasi"          {{ old('category', $serviceType->category ?? '') === 'relokasi'          ? 'selected' : '' }}>Relokasi (1 Lokasi)</option>
+                <option value="relokasi_bongkar"  {{ old('category', $serviceType->category ?? '') === 'relokasi_bongkar'  ? 'selected' : '' }}>Relokasi Bongkar</option>
+                <option value="relokasi_pasang"   {{ old('category', $serviceType->category ?? '') === 'relokasi_pasang'   ? 'selected' : '' }}>Relokasi Pasang</option>
+                <option value="perbaikan"         {{ old('category', $serviceType->category ?? '') === 'perbaikan'         ? 'selected' : '' }}>Perbaikan</option>
+          </select>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
 
                 <div class="md:col-span-2">

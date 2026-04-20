@@ -8,11 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ServiceType extends Model
 {
-    protected $fillable = [
-        'name',
-        'description',
-        'is_active',
-    ];
+    protected $fillable = ['name', 'description', 'category', 'is_active'];
 
     protected $casts = [
         'is_active' => 'integer',

@@ -25,11 +25,11 @@ class OrderController extends Controller
         '17:00',
     ];
 
-    // ─── GET layanan tersedia (bp_services aktif) ─────────────
+    // ─── GET layanan tersedia ─────────────────────────────────
     public function getServices(Request $request)
     {
-        // Ambil city dari alamat primary user, atau query param
         $cityName = $request->query('city');
+        $category = $request->query('category');
 
         $query = BpService::with(['serviceType', 'businessPartner'])
             ->where('is_active', 1);
@@ -40,17 +40,24 @@ class OrderController extends Controller
             });
         }
 
+        if ($category) {
+            $query->whereHas('serviceType', function ($q) use ($category) {
+                $q->where('category', $category);
+            });
+        }
+
         $services = $query->get()->map(function ($service) {
             return [
-                'id'           => $service->id,
-                'name'         => $service->serviceType->name ?? '-',
-                'description'  => $service->serviceType->description ?? '',
-                'base_price'   => (float) $service->base_service,
-                'discount'     => (float) $service->discount,
-                'final_price'  => (float) $service->base_service - (float) $service->discount,
-                'bp_id'        => $service->bp_id,
-                'bp_name'      => $service->businessPartner->name ?? 'Dikari',
-                'banner'       => $service->banner,
+                'id'          => $service->id,
+                'name'        => $service->serviceType->name ?? '-',
+                'description' => $service->serviceType->description ?? '',
+                'category'    => $service->serviceType->category ?? 'cuci_reguler',
+                'base_price'  => (float) $service->base_service,
+                'discount'    => (float) $service->discount,
+                'final_price' => (float) $service->base_service - (float) $service->discount,
+                'bp_id'       => $service->bp_id,
+                'bp_name'     => $service->businessPartner->name ?? 'Dikari',
+                'banner'      => $service->banner,
             ];
         });
 
@@ -63,18 +70,28 @@ class OrderController extends Controller
     // ─── POST buat order baru ─────────────────────────────────
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'user_phone_id'  => 'required|exists:user_phones,id',
-            'address_id'     => 'required|exists:addresses,id',
-            'scheduled_date' => 'required|date|after_or_equal:today',
-            'scheduled_time' => 'required|in:' . implode(',', self::TIME_SLOTS),
-            'notes'          => 'nullable|string|max:500',
-            'items'          => 'required|array|min:1',
-            'items.*.bp_service_id' => 'required|exists:bp_services,id',
-            'items.*.quantity'      => 'required|integer|min:1|max:20',
-        ]);
+        $isRelocation = $request->input('order_type') === 'relokasi';
+        $isDiffLocation = $request->input('relocation_type') === 'different_location';
 
-        // Pastikan alamat & phone milik user ini
+        $rules = [
+            'user_phone_id'          => 'required|exists:user_phones,id',
+            'address_id'             => 'required|exists:addresses,id',
+            'scheduled_date'         => 'required|date|after_or_equal:today',
+            'scheduled_time'         => 'required|in:' . implode(',', self::TIME_SLOTS),
+            'notes'                  => 'nullable|string|max:500',
+            'items'                  => 'required|array|min:1',
+            'items.*.bp_service_id'  => 'required|exists:bp_services,id',
+            'items.*.quantity'       => 'required|integer|min:1|max:20',
+            'order_type'             => 'nullable|string',
+            'relocation_type'        => 'nullable|in:same_location,different_location',
+            'origin_address_id'      => $isRelocation && $isDiffLocation
+                ? 'required|exists:addresses,id'
+                : 'nullable|exists:addresses,id',
+        ];
+
+        $validated = $request->validate($rules);
+
+        // Validasi address & phone milik user
         $address = Address::where('id', $validated['address_id'])
             ->where('user_id', $request->user()->id)
             ->firstOrFail();
@@ -86,33 +103,36 @@ class OrderController extends Controller
             'Nomor kontak tidak valid.'
         );
 
-        // Cari BP berdasarkan kota alamat
-        $bp = BusinessPartner::where('city', 'like', "%{$address->city_name}%")->first();
+        // Validasi origin address kalau relokasi beda lokasi
+        if ($isRelocation && $isDiffLocation) {
+            Address::where('id', $validated['origin_address_id'])
+                ->where('user_id', $request->user()->id)
+                ->firstOrFail();
+        }
 
+        // Cari BP
+        $bp = BusinessPartner::where('city', 'like', "%{$address->city_name}%")->first();
         if (!$bp) {
             return response()->json([
-                'message' => 'Maaf, layanan belum tersedia di kota ' . $address->city_name . '. Kami akan segera hadir di kota Anda!',
+                'message'   => 'Maaf, layanan belum tersedia di kota ' . $address->city_name . '.',
                 'available' => false,
             ], 422);
         }
 
-        return DB::transaction(function () use ($request, $validated, $address, $bp) {
-            // Hitung biaya apartemen
+        return DB::transaction(function () use ($request, $validated, $address, $bp, $isRelocation, $isDiffLocation) {
             $apartmentSurcharge = $address->property_type === 'apartemen'
-                ? self::APARTMENT_SURCHARGE
-                : 0;
+                ? self::APARTMENT_SURCHARGE : 0;
 
-            // Hitung subtotal dari items
-            $subtotal = 0;
+            $subtotal  = 0;
             $itemsData = [];
 
             foreach ($validated['items'] as $item) {
-                $bpService = BpService::with('serviceType')->findOrFail($item['bp_service_id']);
-                $unitPrice = (float) $bpService->base_service;
-                $discount  = (float) $bpService->discount;
-                $qty       = $item['quantity'];
+                $bpService    = BpService::with('serviceType')->findOrFail($item['bp_service_id']);
+                $unitPrice    = (float) $bpService->base_service;
+                $discount     = (float) $bpService->discount;
+                $qty          = $item['quantity'];
                 $itemSubtotal = ($unitPrice - $discount) * $qty;
-                $subtotal += $itemSubtotal;
+                $subtotal    += $itemSubtotal;
 
                 $itemsData[] = [
                     'bp_service_id' => $bpService->id,
@@ -124,8 +144,8 @@ class OrderController extends Controller
             }
 
             $totalAmount = $subtotal + $apartmentSurcharge;
+            // Catatan: transport_fee untuk relokasi beda lokasi akan diset BP kemudian
 
-            // Buat order
             $order = Order::create([
                 'user_id'             => $request->user()->id,
                 'user_phone_id'       => $validated['user_phone_id'],
@@ -136,21 +156,51 @@ class OrderController extends Controller
                 'apartment_surcharge' => $apartmentSurcharge,
                 'subtotal'            => $subtotal,
                 'total_amount'        => $totalAmount,
-                'status'              => 'pending',
+                'status'              => $isRelocation && $isDiffLocation
+                    ? 'pending_transport_fee' // tunggu BP set transport fee
+                    : 'pending',
                 'notes'               => $validated['notes'] ?? null,
+                // Relokasi fields
+                'order_type'          => $validated['order_type'] ?? null,
+                'relocation_type'     => $validated['relocation_type'] ?? null,
+                'origin_address_id'   => ($isRelocation && $isDiffLocation)
+                    ? $validated['origin_address_id'] : null,
+                'transport_fee'       => 0,
             ]);
 
-            // Buat order items
             $order->items()->createMany($itemsData);
-
-            // Load relasi untuk response
-            $order->load(['items.bpService.serviceType', 'address', 'phone', 'businessPartner']);
+            $order->load(['items.bpService.serviceType', 'address', 'phone', 'businessPartner', 'originAddress']);
 
             return response()->json([
-                'message' => 'Order berhasil dibuat!',
+                'message' => $isRelocation && $isDiffLocation
+                    ? 'Order relokasi berhasil dibuat! Menunggu konfirmasi biaya transportasi dari mitra.'
+                    : 'Order berhasil dibuat!',
                 'order'   => $this->formatOrder($order),
             ], 201);
         });
+    }
+
+    // ─── PATCH konfirmasi biaya transport (customer) ──────────
+    public function confirmTransportFee(Request $request, Order $order)
+    {
+        abort_if($order->user_id !== $request->user()->id, 403);
+        abort_if(
+            $order->status !== 'pending_transport_fee_set',
+            422,
+            'Belum ada biaya transportasi yang perlu dikonfirmasi.'
+        );
+
+        $request->validate([
+            'confirm' => 'required|boolean',
+        ]);
+
+        if ($request->confirm) {
+            $order->update(['status' => 'pending']);
+            return response()->json(['message' => 'Biaya transportasi dikonfirmasi. Lanjutkan ke pembayaran.']);
+        } else {
+            $order->update(['status' => 'cancelled']);
+            return response()->json(['message' => 'Order dibatalkan.']);
+        }
     }
 
     // ─── GET list order user ──────────────────────────────────
@@ -174,27 +224,29 @@ class OrderController extends Controller
             'address',
             'phone',
             'businessPartner',
+            'originAddress',
             'report',
             'rating',
             'technician.user',
             'complaint',
+            'secondTechnician.user',
         ]);
 
         return response()->json(['order' => $this->formatOrder($order)]);
     }
 
-    // ─── DELETE / cancel order ────────────────────────────────
+    // ─── PATCH cancel order ───────────────────────────────────
     public function cancel(Request $request, Order $order)
     {
         abort_if($order->user_id !== $request->user()->id, 403);
         abort_if(
-            !($order->status === 'pending' && $order->payment_status === 'unpaid'),
+            !in_array($order->status, ['pending', 'pending_transport_fee', 'pending_transport_fee_set'])
+                || $order->payment_status !== 'unpaid',
             422,
             'Order tidak dapat dibatalkan. Hubungi CS untuk bantuan.'
         );
 
         $order->update(['status' => 'cancelled']);
-
         return response()->json(['message' => 'Order berhasil dibatalkan.']);
     }
 
@@ -204,6 +256,10 @@ class OrderController extends Controller
         return [
             'id'                  => $order->id,
             'status'              => $order->status,
+            'order_type'          => $order->order_type,
+            'relocation_type'     => $order->relocation_type,
+            'transport_fee'       => (float) $order->transport_fee,
+            'split_technician'    => (bool) $order->split_technician,
             'scheduled_date'      => $order->scheduled_date?->format('Y-m-d'),
             'scheduled_time'      => $order->scheduled_time,
             'apartment_surcharge' => (float) $order->apartment_surcharge,
@@ -215,24 +271,34 @@ class OrderController extends Controller
                 'label'        => $order->phone?->label,
                 'phone_number' => $order->phone?->phone_number,
             ],
-            'address'             => [
+            'address' => [
                 'label'         => $order->address?->label,
                 'full_address'  => $order->address?->formatted_address,
                 'property_type' => $order->address?->property_type,
+                'latitude'      => $order->address?->latitude,
+                'longitude'     => $order->address?->longitude,
             ],
-            'items'               => $order->items->map(fn($item) => [
+            // Alamat asal relokasi
+            'origin_address' => $order->originAddress ? [
+                'label'        => $order->originAddress->label,
+                'full_address' => $order->originAddress->formatted_address,
+            ] : null,
+            'items' => $order->items->map(fn($item) => [
                 'id'         => $item->id,
                 'name'       => $item->bpService?->serviceType?->name ?? '-',
+                'category'   => $item->bpService?->serviceType?->category ?? 'cuci_reguler',
                 'quantity'   => $item->quantity,
                 'unit_price' => (float) $item->unit_price,
                 'discount'   => (float) $item->discount,
                 'subtotal'   => (float) $item->subtotal,
             ]),
-            'created_at'          => $order->created_at?->format('Y-m-d H:i'),
+            'created_at'         => $order->created_at?->format('Y-m-d H:i'),
             'payment_status'     => $order->payment_status,
             'tripay_payment_url' => $order->tripay_payment_url,
-            'tripay_reference' => $order->tripay_reference,
-
+            'tripay_reference'   => $order->tripay_reference,
+            'discount_amount'    => (float) $order->discount_amount,
+            'technician_name'    => $order->technician?->user?->name ?? null,
+            'second_technician_name' => $order->secondTechnician?->user?->name ?? null,
             'report' => $order->report ? [
                 'photo_before'       => url('storage/' . $order->report->photo_before),
                 'photo_after'        => url('storage/' . $order->report->photo_after),
@@ -241,14 +307,14 @@ class OrderController extends Controller
                 'freon_checked'      => $order->report->freon_checked,
                 'drain_cleaned'      => $order->report->drain_cleaned,
                 'electrical_checked' => $order->report->electrical_checked,
+                'unit_installed'     => $order->report->unit_installed,
+                'piping_neat'        => $order->report->piping_neat,
+                'cooling_test'       => $order->report->cooling_test,
+                'remote_working'     => $order->report->remote_working,
+                'ac_dismantled'       => $order->report->ac_dismantled,       // ← tambah
+                'unit_safe_transport' => $order->report->unit_safe_transport, // ← tambah
             ] : null,
-            'discount_amount'     => (float) $order->discount_amount,
             'rating' => $order->rating ? [
-                'rating' => $order->rating->rating,
-                'review' => $order->rating->review,
-            ] : null,
-            'technician_name' => $order->technician?->user?->name ?? null,
-            'rating'          => $order->rating ? [
                 'rating' => $order->rating->rating,
                 'review' => $order->rating->review,
             ] : null,

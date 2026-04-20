@@ -17,6 +17,12 @@ class OrderReport extends Model
         'freon_checked',
         'drain_cleaned',
         'electrical_checked',
+        'unit_installed',
+        'piping_neat',
+        'cooling_test',
+        'remote_working',
+        'ac_dismantled',
+        'unit_safe_transport',
     ];
 
     protected $casts = [
@@ -24,6 +30,10 @@ class OrderReport extends Model
         'freon_checked'       => 'boolean',
         'drain_cleaned'       => 'boolean',
         'electrical_checked'  => 'boolean',
+        'unit_installed'  => 'boolean',
+        'piping_neat'  => 'boolean',
+        'cooling_test'  => 'boolean',
+        'remote_working'  => 'boolean',
     ];
 
     public function order(): BelongsTo
