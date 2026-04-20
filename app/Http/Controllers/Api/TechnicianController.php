@@ -28,11 +28,14 @@ class TechnicianController extends Controller
         abort_if(!$technician, 403, 'Bukan akun teknisi.');
 
         $orders = Order::with(['items.bpService.serviceType', 'address', 'originAddress', 'phone', 'user'])
-            ->where('technician_id', $technician->id)
+            ->where(function ($q) use ($technician) {
+                $q->where('technician_id', $technician->id)
+                    ->orWhere('second_technician_id', $technician->id);
+            })
             ->whereIn('status', [
                 'confirmed',
                 'in_progress',
-                'disassembled',      // ← tambah
+                'disassembled',
                 'waiting_confirmation',
                 'completed',
             ])
@@ -51,8 +54,12 @@ class TechnicianController extends Controller
         $technician = Technician::where('user_id', $user->id)->first();
 
         abort_if(!$technician, 403, 'Bukan akun teknisi.');
-        abort_if($order->technician_id !== $technician->id, 403, 'Bukan order kamu.');
-
+        abort_if(
+            $order->technician_id !== $technician->id &&
+                $order->second_technician_id !== $technician->id,
+            403,
+            'Bukan order kamu.'
+        );
         $order->load(['items.bpService.serviceType', 'address', 'originAddress', 'phone', 'user', 'report']);
 
         return response()->json(['order' => $this->formatOrder($order)]);
