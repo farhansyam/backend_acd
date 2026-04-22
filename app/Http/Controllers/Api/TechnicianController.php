@@ -46,7 +46,7 @@ class TechnicianController extends Controller
             ->orderByDesc('scheduled_date')
             ->orderByDesc('created_at')
             ->get()
-            ->map(fn($o) => $this->formatOrder($o));
+            ->map(fn($o) => $this->formatOrder($o, $technician));
 
         return response()->json(['orders' => $orders]);
     }
@@ -66,7 +66,7 @@ class TechnicianController extends Controller
         );
         $order->load(['items.bpService.serviceType', 'address', 'originAddress', 'phone', 'user', 'report']);
 
-        return response()->json(['order' => $this->formatOrder($order)]);
+        return response()->json(['order' => $this->formatOrder($order, $technician)]);
     }
 
     // ─── POST submit laporan + tandai selesai ─────────────────
@@ -97,17 +97,34 @@ class TechnicianController extends Controller
         $isMainTechnician   = $order->technician_id === $technician->id;
 
         abort_if(!$isMainTechnician && !$isSecondTechnician, 403, 'Bukan order kamu.');
-
-        $validStatuses = ['confirmed', 'in_progress'];
-        if ($order->split_technician) $validStatuses[] = 'disassembled';
-        abort_if(
-            !in_array($order->status, $validStatuses),
-            422,
-            'Order tidak dalam status yang bisa diselesaikan.'
-        );
-
         // Relokasi beda lokasi dengan 2 teknisi berbeda
         $isRelokasi2Teknisi = $order->split_technician && $order->order_type === 'relokasi';
+
+        // Cek status valid berdasarkan siapa yang submit
+        if ($isRelokasi2Teknisi) {
+            if ($isMainTechnician) {
+                // Teknisi bongkar — hanya saat confirmed/in_progress
+                abort_if(
+                    !in_array($order->status, ['confirmed', 'in_progress']),
+                    422,
+                    'Order tidak dalam status yang bisa diselesaikan.'
+                );
+            } else {
+                // Teknisi pasang — hanya saat disassembled
+                abort_if(
+                    $order->status !== 'disassembled',
+                    422,
+                    'Menunggu teknisi bongkar menyelesaikan tugasnya terlebih dahulu.'
+                );
+            }
+        } else {
+            abort_if(
+                !in_array($order->status, ['confirmed', 'in_progress']),
+                422,
+                'Order tidak dalam status yang bisa diselesaikan.'
+            );
+        }
+
 
         // Relokasi 1 lokasi atau teknisi sama = selesai sekaligus (laporan gabungan)
         $isSameLocationRelokasi = $order->order_type === 'relokasi' && !$order->split_technician;
@@ -371,9 +388,11 @@ class TechnicianController extends Controller
     }
 
     // ─── Helper format order ──────────────────────────────────
-    private function formatOrder(Order $order): array
+    private function formatOrder(Order $order, ?Technician $technician = null): array
     {
         return [
+            // Tambah di formatOrder:
+            'is_second_technician' => $order->second_technician_id === $technician?->id,
             'id'               => $order->id,
             'status'           => $order->status,
             'payment_status'   => $order->payment_status,
