@@ -332,8 +332,11 @@ class TechnicianController extends Controller
             ->sum('amount');
 
         $activeOrder = Order::with(['items.bpService.serviceType', 'address'])
-            ->where('technician_id', $technician->id)
-            ->whereIn('status', ['confirmed', 'in_progress'])
+            ->where(function ($q) use ($technician) {
+                $q->where('technician_id', $technician->id)
+                    ->orWhere('second_technician_id', $technician->id);
+            })
+            ->whereIn('status', ['confirmed', 'in_progress', 'disassembled']) // ← tambah disassembled
             ->latest()
             ->first();
 
@@ -370,8 +373,6 @@ class TechnicianController extends Controller
     // ─── Helper format order ──────────────────────────────────
     private function formatOrder(Order $order): array
     {
-        $report = $order->report ?? $order->load('report')->report;
-
         return [
             'id'               => $order->id,
             'status'           => $order->status,
@@ -385,17 +386,6 @@ class TechnicianController extends Controller
             'relocation_type'  => $order->relocation_type,
             'transport_fee'    => (float) $order->transport_fee,
             'split_technician' => (bool) $order->split_technician,
-            'origin_address'   => $order->originAddress ? [
-                'label'        => $order->originAddress->label ?? '-',
-                'full_address' => $order->originAddress->formatted_address ?? '-',
-            ] : null,
-
-            // ← tambah field relokasi
-            'order_type'       => $order->order_type,
-            'relocation_type'  => $order->relocation_type,
-            'transport_fee'    => (float) $order->transport_fee,
-            'split_technician' => (bool) $order->split_technician,
-
             'customer' => [
                 'name'  => $order->user?->name ?? '-',
                 'email' => $order->user?->email ?? '-',
@@ -412,15 +402,12 @@ class TechnicianController extends Controller
                 'latitude'     => $order->address?->latitude,
                 'longitude'    => $order->address?->longitude,
             ],
-
-            // ← tambah origin_address
             'origin_address' => $order->originAddress ? [
                 'label'        => $order->originAddress->label ?? '-',
                 'full_address' => $order->originAddress->formatted_address ?? '-',
                 'latitude'     => $order->originAddress->latitude,
                 'longitude'    => $order->originAddress->longitude,
             ] : null,
-
             'items' => $order->items->map(fn($item) => [
                 'id'         => $item->id,
                 'name'       => $item->bpService?->serviceType?->name ?? '-',
