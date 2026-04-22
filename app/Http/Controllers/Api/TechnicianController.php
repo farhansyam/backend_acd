@@ -56,7 +56,6 @@ class TechnicianController extends Controller
     {
         $user       = $request->user();
         $technician = Technician::where('user_id', $user->id)->first();
-
         abort_if(!$technician, 403, 'Bukan akun teknisi.');
         abort_if(
             $order->technician_id !== $technician->id &&
@@ -64,8 +63,16 @@ class TechnicianController extends Controller
             403,
             'Bukan order kamu.'
         );
-        $order->load(['items.bpService.serviceType', 'address', 'originAddress', 'phone', 'user', 'report']);
 
+        // ← tambah ini
+        \Log::info('showOrder debug', [
+            'technician_id'             => $technician->id,
+            'order_technician_id'       => $order->technician_id,
+            'order_second_technician_id' => $order->second_technician_id,
+            'is_second'                 => $order->second_technician_id === $technician->id,
+        ]);
+
+        $order->load(['items.bpService.serviceType', 'address', 'originAddress', 'phone', 'user', 'report']);
         return response()->json(['order' => $this->formatOrder($order, $technician)]);
     }
 
