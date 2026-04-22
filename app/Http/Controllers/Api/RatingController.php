@@ -14,18 +14,21 @@ class RatingController extends Controller
     public function store(Request $request, Order $order)
     {
         $request->validate([
-            'rating' => 'required|integer|min:1|max:5',
-            'review' => 'nullable|string|max:500',
+            'rating'               => 'required|integer|min:1|max:5',
+            'review'               => 'nullable|string|max:500',
+            // Rating teknisi pasang (opsional, khusus relokasi beda lokasi 2 teknisi)
+            'second_rating'        => 'nullable|integer|min:1|max:5',
+            'second_review'        => 'nullable|string|max:500',
         ]);
 
         $user = $request->user();
 
         abort_if($order->user_id !== $user->id, 403, 'Bukan order kamu.');
-        // Jadi:
         abort_if(!in_array($order->status, ['warranty', 'completed', 'complained']), 422, 'Order belum selesai.');
         abort_if($order->rating()->exists(), 422, 'Rating sudah diberikan.');
         abort_if(!$order->technician_id, 422, 'Order belum punya teknisi.');
 
+        // Rating teknisi bongkar (atau teknisi tunggal)
         $rating = OrderRating::create([
             'order_id'      => $order->id,
             'user_id'       => $user->id,
@@ -34,12 +37,24 @@ class RatingController extends Controller
             'review'        => $request->review,
         ]);
 
-        // Update rata-rata rating teknisi
-        $technician = Technician::find($order->technician_id);
-        if ($technician) {
-            $avgRating = OrderRating::where('technician_id', $technician->id)
-                ->avg('rating');
-            $technician->update(['avg_rating' => round($avgRating, 1)]);
+        // Update avg rating teknisi bongkar
+        $this->updateAvgRating($order->technician_id);
+
+        // Rating teknisi pasang (kalau relokasi beda lokasi 2 teknisi)
+        if (
+            $order->split_technician &&
+            $order->second_technician_id &&
+            $request->filled('second_rating')
+        ) {
+            OrderRating::create([
+                'order_id'      => $order->id,
+                'user_id'       => $user->id,
+                'technician_id' => $order->second_technician_id,
+                'rating'        => $request->second_rating,
+                'review'        => $request->second_review,
+            ]);
+
+            $this->updateAvgRating($order->second_technician_id);
         }
 
         return response()->json([
@@ -50,6 +65,15 @@ class RatingController extends Controller
                 'review' => $rating->review,
             ],
         ]);
+    }
+
+    private function updateAvgRating(int $technicianId): void
+    {
+        $technician = Technician::find($technicianId);
+        if ($technician) {
+            $avg = OrderRating::where('technician_id', $technicianId)->avg('rating');
+            $technician->update(['avg_rating' => round($avg, 1)]);
+        }
     }
 
     // GET rating sebuah order
@@ -80,13 +104,13 @@ class RatingController extends Controller
             ->take(10)
             ->get()
             ->map(fn($r) => [
-                'id'             => $r->id,
-                'rating'         => $r->rating,
-                'review'         => $r->review,
-                'customer_name'  => $r->order?->user?->name ?? 'Customer',
+                'id'              => $r->id,
+                'rating'          => $r->rating,
+                'review'          => $r->review,
+                'customer_name'   => $r->order?->user?->name ?? 'Customer',
                 'customer_avatar' => $r->order?->user?->avatar,
                 'technician_name' => $r->technician?->user?->name ?? 'Teknisi',
-                'created_at'     => $r->created_at->format('d M Y'),
+                'created_at'      => $r->created_at->format('d M Y'),
             ]);
 
         return response()->json(['reviews' => $ratings]);
