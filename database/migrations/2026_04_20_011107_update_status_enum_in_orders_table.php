@@ -11,11 +11,22 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('orders', function (Blueprint $table) {
-            //
-        });
+        DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM(
+        'pending',
+        'pending_transport_fee',
+        'pending_transport_fee_set',
+        'confirmed',
+        'in_progress',
+        'waiting_confirmation',
+        'warranty',
+        'complained',
+        'rework_assigned',
+        'rework_completed',
+        'closed',
+        'completed',
+        'cancelled'
+    ) NOT NULL DEFAULT 'pending'");
     }
-
     /**
      * Reverse the migrations.
      */

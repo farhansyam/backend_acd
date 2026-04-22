@@ -24,6 +24,10 @@ class TechnicianController extends Controller
     {
         $user       = $request->user();
         $technician = Technician::where('user_id', $user->id)->first();
+        \Log::info('myOrders called', [
+            'user_id'       => $user->id,
+            'technician_id' => $technician?->id,
+        ]);
 
         abort_if(!$technician, 403, 'Bukan akun teknisi.');
 
