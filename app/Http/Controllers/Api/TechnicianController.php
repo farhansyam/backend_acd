@@ -45,8 +45,13 @@ class TechnicianController extends Controller
             ])
             ->orderByDesc('scheduled_date')
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn($o) => $this->formatOrder($o));
+            ->get();
+
+        \Log::info('myOrders result', [
+            'technician_id' => $technician->id,
+            'count'         => $orders->count(),
+            'order_ids'     => $orders->pluck('id')->toArray(),
+        ]);
 
         return response()->json(['orders' => $orders]);
     }
