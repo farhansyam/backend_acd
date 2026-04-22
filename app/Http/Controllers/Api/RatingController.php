@@ -29,31 +29,25 @@ class RatingController extends Controller
         abort_if(!$order->technician_id, 422, 'Order belum punya teknisi.');
 
         // Rating teknisi bongkar (atau teknisi tunggal)
+        // Rating teknisi bongkar (atau teknisi tunggal)
         $rating = OrderRating::create([
             'order_id'      => $order->id,
             'user_id'       => $user->id,
             'technician_id' => $order->technician_id,
             'rating'        => $request->rating,
             'review'        => $request->review,
+            // Langsung simpan rating teknisi pasang di row yang sama
+            'second_technician_id' => ($order->split_technician && $order->second_technician_id && $request->filled('second_rating'))
+                ? $order->second_technician_id : null,
+            'second_rating' => $request->second_rating ?? null,
+            'second_review' => $request->second_review ?? null,
         ]);
 
         // Update avg rating teknisi bongkar
         $this->updateAvgRating($order->technician_id);
 
-        // Rating teknisi pasang (kalau relokasi beda lokasi 2 teknisi)
-        if (
-            $order->split_technician &&
-            $order->second_technician_id &&
-            $request->filled('second_rating')
-        ) {
-            OrderRating::create([
-                'order_id'      => $order->id,
-                'user_id'       => $user->id,
-                'technician_id' => $order->second_technician_id,
-                'rating'        => $request->second_rating,
-                'review'        => $request->second_review,
-            ]);
-
+        // Update avg rating teknisi pasang
+        if ($order->split_technician && $order->second_technician_id && $request->filled('second_rating')) {
             $this->updateAvgRating($order->second_technician_id);
         }
 

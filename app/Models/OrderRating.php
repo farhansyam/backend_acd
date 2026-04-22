@@ -13,10 +13,13 @@ class OrderRating extends Model
         'technician_id',
         'rating',
         'review',
+        'second_technician_id',
+        'second_rating',
+        'second_review',
     ];
-
     protected $casts = [
-        'rating' => 'integer',
+        'rating'        => 'integer',
+        'second_rating' => 'integer',
     ];
 
     public function order(): BelongsTo
