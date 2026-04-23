@@ -142,4 +142,55 @@ class NotificationService
             ['type' => 'warranty_active', 'order_id' => (string) $orderId]
         );
     }
+
+    /**
+     * Notifikasi ke customer — garansi akan expired besok
+     */
+    public function notifyWarrantyExpiringSoon(string $fcmToken, int $orderId): void
+    {
+        $this->sendToDevice(
+            $fcmToken,
+            '⏰ Garansi Hampir Habis',
+            "Masa garansi pesanan #$orderId akan berakhir besok. Segera ajukan komplain jika ada masalah.",
+            ['type' => 'warranty_expiring_soon', 'order_id' => (string) $orderId]
+        );
+    }
+
+    /**
+     * Notifikasi ke teknisi — garansi order expired
+     */
+    public function notifyWarrantyExpired(string $fcmToken, int $orderId): void
+    {
+        $this->sendToDevice(
+            $fcmToken,
+            '✅ Garansi Selesai',
+            "Masa garansi order #$orderId sudah habis. Pesanan dinyatakan selesai.",
+            ['type' => 'warranty_expired', 'order_id' => (string) $orderId]
+        );
+    }
+
+    /**
+     * Notifikasi ke teknisi — withdraw disetujui admin
+     */
+    public function notifyWithdrawApproved(string $fcmToken, float $amount): void
+    {
+        $formatted = 'Rp ' . number_format($amount, 0, ',', '.');
+        $this->sendToDevice(
+            $fcmToken,
+            '💸 Penarikan Disetujui',
+            "Penarikan saldo $formatted kamu telah disetujui dan sedang diproses.",
+            ['type' => 'withdraw_approved', 'amount' => (string) $amount]
+        );
+    }
+
+    public function notifyWithdrawRejected(string $fcmToken, float $amount, string $reason): void
+    {
+        $formatted = 'Rp ' . number_format($amount, 0, ',', '.');
+        $this->sendToDevice(
+            $fcmToken,
+            '❌ Penarikan Ditolak',
+            "Penarikan saldo $formatted ditolak. Alasan: $reason",
+            ['type' => 'withdraw_rejected', 'amount' => (string) $amount]
+        );
+    }
 }

@@ -182,17 +182,54 @@ class AssignmentController extends Controller
         });
 
         // Notifikasi teknisi
+        // Notifikasi teknisi bongkar
         $technician = $order->technician;
         if ($technician?->user->fcm_token) {
             $grade     = $technician->grade ?? 'beginner';
             $rates     = BalanceService::GRADE_RATES[$grade];
-            $techShare = round((float) $order->total_amount * $rates['technician'] / 100, 2);
+
+            // Hitung bongkarTotal sama seperti di BalanceService
+            $order->load('items.bpService.serviceType');
+            $bongkarTotal = (float) $order->items
+                ->filter(fn($i) => $i->bpService?->serviceType?->category === 'relokasi_bongkar')
+                ->sum('subtotal');
+            $pasangTotal = (float) $order->items
+                ->filter(fn($i) => $i->bpService?->serviceType?->category === 'relokasi_pasang')
+                ->sum('subtotal');
+
+            // Fallback relokasi 1 lokasi
+            if ($bongkarTotal == 0 && $pasangTotal == 0) {
+                $half = round((float) $order->total_amount / 2, 2);
+                $bongkarTotal = $half;
+                $pasangTotal  = $half;
+            }
+
+            $base = $order->order_type === 'relokasi' ? $bongkarTotal : (float) $order->total_amount;
+            $techShare = round($base * $rates['technician'] / 100, 2);
+
             $this->notificationService->notifyBalanceReleased(
                 $technician->user->fcm_token,
                 $techShare,
                 $order->id
             );
         }
+
+        // Notifikasi teknisi pasang (relokasi beda lokasi)
+        if ($order->split_technician && $order->second_technician_id) {
+            $techPasang = \App\Models\Technician::with('user')->find($order->second_technician_id);
+            if ($techPasang?->user->fcm_token) {
+                $grade     = $techPasang->grade ?? 'beginner';
+                $rates     = BalanceService::GRADE_RATES[$grade];
+                $techShare = round($pasangTotal * $rates['technician'] / 100, 2);
+
+                $this->notificationService->notifyBalanceReleased(
+                    $techPasang->user->fcm_token,
+                    $techShare,
+                    $order->id
+                );
+            }
+        }
+
         Mail::to($order->user->email)->queue(new WarrantyActiveMail($order->fresh()));
         return response()->json([
             'message'              => 'Pesanan dikonfirmasi. Masa garansi 7 hari aktif.',
