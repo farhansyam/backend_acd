@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\OrderReport;
 
+use function PHPSTORM_META\map;
+
 class Order extends Model
 {
     protected $fillable = [
@@ -39,7 +41,8 @@ class Order extends Model
         'second_technician_id',
         'order_type',
         'keluhan',
-        'keluhan_lainnya'
+        'keluhan_lainnya',
+        'is_perbaikan'
     ];
 
     protected $casts = [
