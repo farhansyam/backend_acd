@@ -38,6 +38,8 @@ class Order extends Model
         'split_technician',
         'second_technician_id',
         'order_type',
+        'keluhan',
+        'keluhan_lainnya'
     ];
 
     protected $casts = [
@@ -49,7 +51,6 @@ class Order extends Model
         'split_technician' => 'boolean',
         'transport_fee'    => 'decimal:2',
         'keluhan'      => 'array',
-        'is_perbaikan' => 'boolean',
 
     ];
 
