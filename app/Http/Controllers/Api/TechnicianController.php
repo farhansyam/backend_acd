@@ -423,10 +423,13 @@ class TechnicianController extends Controller
             'transport_fee'    => (float) $order->transport_fee,
             'split_technician' => (bool) $order->split_technician,
             // ─── Perbaikan fields ───────────────────────────
-            'is_perbaikan'     => (bool) $order->is_perbaikan,    // ← tambah
-            'perbaikan_phase'  => $order->perbaikan_phase,        // ← tambah
-            'phase2_order_id'  => $order->phase2_order_id,        // ← tambah
-            'survey_order_id'  => $order->survey_order_id,        // ← tambah
+            'is_perbaikan'    => (bool) $order->is_perbaikan,
+            'perbaikan_phase' => $order->perbaikan_phase,
+            'phase2_order_id' => $order->phase2_order_id,
+            'survey_order_id' => $order->survey_order_id,
+            'keluhan'         => $order->keluhan ?? [],
+            'keluhan_lainnya' => $order->keluhan_lainnya,
+            // ───────────────────────────────────────────────
             // ────────────────────────────────────────────────
             'customer' => [
                 'name'  => $order->user?->name ?? '-',
