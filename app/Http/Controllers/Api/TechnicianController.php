@@ -42,6 +42,8 @@ class TechnicianController extends Controller
                 'disassembled',
                 'waiting_confirmation',
                 'completed',
+                'warranty',   // ← tambah
+                'complained', // ← tambah
             ])
             ->orderByDesc('scheduled_date')
             ->orderByDesc('created_at')
