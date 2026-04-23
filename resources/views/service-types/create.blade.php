@@ -35,7 +35,8 @@
                 <option value="relokasi"          {{ old('category', $serviceType->category ?? '') === 'relokasi'          ? 'selected' : '' }}>Relokasi (1 Lokasi)</option>
                 <option value="relokasi_bongkar"  {{ old('category', $serviceType->category ?? '') === 'relokasi_bongkar'  ? 'selected' : '' }}>Relokasi Bongkar</option>
                 <option value="relokasi_pasang"   {{ old('category', $serviceType->category ?? '') === 'relokasi_pasang'   ? 'selected' : '' }}>Relokasi Pasang</option>
-                <option value="perbaikan"         {{ old('category', $serviceType->category ?? '') === 'perbaikan'         ? 'selected' : '' }}>Perbaikan</option>
+                <option value="service_perbaikan_survey"  {{ old('category', $serviceType->category ?? '') === 'service_perbaikan_survey'  ? 'selected' : '' }}>Perbaikan — Biaya Survey</option>
+                <option value="service_perbaikan_service" {{ old('category', $serviceType->category ?? '') === 'service_perbaikan_service' ? 'selected' : '' }}>Perbaikan — Biaya Service</option>
           </select>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
