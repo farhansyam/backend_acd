@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\PhoneController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\DikariPayController;
+use App\Http\Controllers\Api\Technician\SurveyReportController;
 use App\Http\Controllers\Api\TechnicianController;
 use App\Http\Controllers\Api\AssignmentController;
 use Illuminate\Support\Facades\Route;
@@ -113,6 +114,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/orders/assign',            [AssignmentController::class, 'assign']);
         Route::patch('/orders/{order}/complete', [AssignmentController::class, 'complete']);
         Route::get('/balance',                   [AssignmentController::class, 'balance']);
+    });
+
+    // Customer
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/orders/perbaikan', [OrderController::class, 'createPerbaikanOrder']);
+        Route::get('/orders/{order}/survey-report', [OrderController::class, 'surveyReport']);
+        Route::post('/orders/{order}/survey-respond', [OrderController::class, 'respondSurvey']);
+    });
+
+    // Teknisi
+    Route::middleware(['auth:sanctum', 'role:teknisi'])->group(function () {
+        Route::post('/technician/orders/{order}/survey-report', [SurveyReportController::class, 'store']);
     });
 
     Route::patch('/orders/{order}/confirm-transport', [OrderController::class, 'confirmTransportFee']);

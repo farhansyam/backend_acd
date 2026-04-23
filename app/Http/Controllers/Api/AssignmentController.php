@@ -8,17 +8,19 @@ use App\Models\OrderAssignment;
 use App\Models\Technician;
 use App\Services\BalanceService;
 use App\Services\NotificationService;
+use App\Services\SurveyBalanceService;
 use Illuminate\Http\Request;
 use App\Mail\OrderConfirmedMail;
+use App\Mail\WarrantyActiveMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
-use App\Mail\WarrantyActiveMail;
 
 class AssignmentController extends Controller
 {
     public function __construct(
         private BalanceService $balanceService,
-        private NotificationService $notificationService
+        private NotificationService $notificationService,
+        private SurveyBalanceService $surveyBalanceService,
     ) {}
 
     public function pendingOrders(Request $request)
@@ -89,10 +91,16 @@ class AssignmentController extends Controller
             ->firstOrFail();
 
         DB::transaction(function () use ($order, $technician, $user, $validated) {
+            // Order perbaikan fase survey → status survey_in_progress
+            $nextStatus = ($order->is_perbaikan && $order->perbaikan_phase === 'survey')
+                ? 'survey_in_progress'
+                : 'in_progress';
+
             $order->update([
                 'technician_id' => $technician->id,
-                'status'        => 'in_progress',
+                'status'        => $nextStatus,
             ]);
+
             OrderAssignment::create([
                 'order_id'      => $order->id,
                 'technician_id' => $technician->id,
@@ -102,8 +110,7 @@ class AssignmentController extends Controller
             ]);
         });
 
-        // Notifikasi teknisi
-
+        // Notif teknisi
         if ($technician->user->fcm_token) {
             $this->notificationService->notifyTechnicianAssigned(
                 $technician->user->fcm_token,
@@ -112,13 +119,14 @@ class AssignmentController extends Controller
             );
         }
 
-        // Notifikasi customer
+        // Notif customer
         if ($order->user->fcm_token) {
             $this->notificationService->notifyOrderConfirmed(
                 $order->user->fcm_token,
                 $order->id
             );
         }
+
         Mail::to($order->user->email)->queue(new OrderConfirmedMail($order));
 
         return response()->json(['message' => 'Teknisi berhasil di-assign.']);
@@ -145,7 +153,6 @@ class AssignmentController extends Controller
             ->where('status', 'assigned')
             ->update(['status' => 'completed', 'completed_at' => now()]);
 
-        // Notifikasi customer
         if ($order->user->fcm_token) {
             $this->notificationService->notifyWaitingConfirmation(
                 $order->user->fcm_token,
@@ -159,21 +166,38 @@ class AssignmentController extends Controller
         ]);
     }
 
-    // Dipanggil dari app customer
+    // Dipanggil dari app customer — klik "Selesai"
     public function customerConfirm(Request $request, Order $order)
     {
         abort_if($order->user_id !== $request->user()->id, 403, 'Bukan order kamu.');
         abort_if($order->status !== 'waiting_confirmation', 422, 'Order tidak menunggu konfirmasi.');
 
         DB::transaction(function () use ($order) {
+
+            // ─── Order perbaikan fase 2 ───────────────────────────
+            // Balance cair gabungan (survey + fase2), garansi aktif
+            if ($order->is_perbaikan && $order->perbaikan_phase === 'phase2') {
+                $order->update([
+                    'status'           => 'completed',
+                    'auto_complete_at' => null,
+                ]);
+
+                // SurveyBalanceService handle:
+                // - Hitung total (survey + fase2)
+                // - Release ke teknisi, BP, ACD
+                // - Set garansi di fase2Order
+                $this->surveyBalanceService->release($order);
+                return;
+            }
+
+            // ─── Order biasa (non-perbaikan) ─────────────────────
             $order->update([
-                'status'               => 'warranty',
-                'warranty_started_at'  => now(),
-                'warranty_expires_at'  => now()->addDays(7),
-                'auto_complete_at'     => null,
+                'status'              => 'warranty',
+                'warranty_started_at' => now(),
+                'warranty_expires_at' => now()->addDays(7),
+                'auto_complete_at'    => null,
             ]);
 
-            // Saldo teknisi cair 1x24 jam
             if ($order->order_type === 'relokasi') {
                 $this->balanceService->distributeRelocationEarning($order);
             } else {
@@ -181,61 +205,70 @@ class AssignmentController extends Controller
             }
         });
 
-        // Notifikasi teknisi
-        // Notifikasi teknisi bongkar
-        $technician = $order->technician;
-        if ($technician?->user->fcm_token) {
-            $grade     = $technician->grade ?? 'beginner';
-            $rates     = BalanceService::GRADE_RATES[$grade];
+        // ─── Notif setelah transaction ────────────────────────────
 
-            // Hitung bongkarTotal sama seperti di BalanceService
-            $order->load('items.bpService.serviceType');
-            $bongkarTotal = (float) $order->items
-                ->filter(fn($i) => $i->bpService?->serviceType?->category === 'relokasi_bongkar')
-                ->sum('subtotal');
-            $pasangTotal = (float) $order->items
-                ->filter(fn($i) => $i->bpService?->serviceType?->category === 'relokasi_pasang')
-                ->sum('subtotal');
+        // Perbaikan fase 2 — notif teknisi saldo masuk sudah di-handle SurveyBalanceService
+        // Hanya kirim notif customer garansi aktif jika order biasa
+        if (!($order->is_perbaikan && $order->perbaikan_phase === 'phase2')) {
+            $technician = $order->technician;
+            if ($technician?->user->fcm_token) {
+                $grade    = $technician->grade ?? 'beginner';
+                $rates    = BalanceService::GRADE_RATES[$grade];
+                $order->load('items.bpService.serviceType');
 
-            // Fallback relokasi 1 lokasi
-            if ($bongkarTotal == 0 && $pasangTotal == 0) {
-                $half = round((float) $order->total_amount / 2, 2);
-                $bongkarTotal = $half;
-                $pasangTotal  = $half;
-            }
+                $bongkarTotal = (float) $order->items
+                    ->filter(fn($i) => $i->bpService?->serviceType?->category === 'relokasi_bongkar')
+                    ->sum('subtotal');
+                $pasangTotal = (float) $order->items
+                    ->filter(fn($i) => $i->bpService?->serviceType?->category === 'relokasi_pasang')
+                    ->sum('subtotal');
 
-            $base = $order->order_type === 'relokasi' ? $bongkarTotal : (float) $order->total_amount;
-            $techShare = round($base * $rates['technician'] / 100, 2);
+                if ($bongkarTotal == 0 && $pasangTotal == 0) {
+                    $half         = round((float) $order->total_amount / 2, 2);
+                    $bongkarTotal = $half;
+                    $pasangTotal  = $half;
+                }
 
-            $this->notificationService->notifyBalanceReleased(
-                $technician->user->fcm_token,
-                $techShare,
-                $order->id
-            );
-        }
-
-        // Notifikasi teknisi pasang (relokasi beda lokasi)
-        if ($order->split_technician && $order->second_technician_id) {
-            $techPasang = \App\Models\Technician::with('user')->find($order->second_technician_id);
-            if ($techPasang?->user->fcm_token) {
-                $grade     = $techPasang->grade ?? 'beginner';
-                $rates     = BalanceService::GRADE_RATES[$grade];
-                $techShare = round($pasangTotal * $rates['technician'] / 100, 2);
+                $base      = $order->order_type === 'relokasi' ? $bongkarTotal : (float) $order->total_amount;
+                $techShare = round($base * $rates['technician'] / 100, 2);
 
                 $this->notificationService->notifyBalanceReleased(
-                    $techPasang->user->fcm_token,
+                    $technician->user->fcm_token,
                     $techShare,
                     $order->id
                 );
             }
+
+            // Notif teknisi pasang (relokasi beda lokasi)
+            if ($order->split_technician && $order->second_technician_id) {
+                $techPasang = Technician::with('user')->find($order->second_technician_id);
+                if ($techPasang?->user->fcm_token) {
+                    $grade     = $techPasang->grade ?? 'beginner';
+                    $rates     = BalanceService::GRADE_RATES[$grade];
+                    $techShare = round($pasangTotal * $rates['technician'] / 100, 2);
+
+                    $this->notificationService->notifyBalanceReleased(
+                        $techPasang->user->fcm_token,
+                        $techShare,
+                        $order->id
+                    );
+                }
+            }
+
+            Mail::to($order->user->email)->queue(new WarrantyActiveMail($order->fresh()));
+
+            return response()->json([
+                'message'             => 'Pesanan dikonfirmasi. Masa garansi 7 hari aktif.',
+                'warranty_expires_at' => now()->addDays(7)->toIso8601String(),
+            ]);
         }
 
-        Mail::to($order->user->email)->queue(new WarrantyActiveMail($order->fresh()));
+        // Response untuk perbaikan fase 2
         return response()->json([
-            'message'              => 'Pesanan dikonfirmasi. Masa garansi 7 hari aktif.',
-            'warranty_expires_at'  => now()->addDays(7)->toIso8601String(),
+            'message' => 'Pesanan selesai. Terima kasih sudah menggunakan layanan Dikari!',
         ]);
     }
+
     public function orderHistory(Request $request)
     {
         $user = $request->user();
@@ -285,6 +318,8 @@ class AssignmentController extends Controller
             'scheduled_time'   => $order->scheduled_time,
             'total_amount'     => (float) $order->total_amount,
             'auto_complete_at' => $order->auto_complete_at?->toIso8601String(),
+            'is_perbaikan'     => (bool) $order->is_perbaikan,
+            'perbaikan_phase'  => $order->perbaikan_phase,
             'technician'       => $order->technician ? [
                 'id'    => $order->technician->id,
                 'name'  => $order->technician->user->name ?? '-',

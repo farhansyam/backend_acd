@@ -11,9 +11,7 @@
 <div class="card border-0 mt-6">
     <div class="card-header border-b border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-700 py-4 px-6 flex items-center justify-between">
         <h6 class="text-lg font-semibold mb-0">Daftar Order</h6>
-        <div class="flex items-center gap-2">
-            <span class="text-sm text-secondary-light">Total: {{ $orders->total() }} order</span>
-        </div>
+        <span class="text-sm text-secondary-light">Total: {{ $orders->total() }} order</span>
     </div>
     <div class="card-body p-6">
 
@@ -43,6 +41,23 @@
                 </thead>
                 <tbody>
                     @forelse($orders as $order)
+                    @php
+                        $statusMap = [
+                            'pending'                   => ['label' => 'Menunggu Konfirmasi',         'class' => 'bg-warning-100 text-warning-600'],
+                            'pending_transport_fee'     => ['label' => 'Menunggu Biaya Transport',    'class' => 'bg-orange-100 text-orange-600'],
+                            'pending_transport_fee_set' => ['label' => 'Konfirmasi Customer',         'class' => 'bg-purple-100 text-purple-600'],
+                            'confirmed'                 => ['label' => 'Dikonfirmasi',                'class' => 'bg-info-100 text-info-600'],
+                            'in_progress'               => ['label' => 'Dikerjakan',                  'class' => 'bg-warning-100 text-warning-600'],
+                            'survey_in_progress'        => ['label' => 'Survei Berlangsung',          'class' => 'bg-indigo-100 text-indigo-600'],
+                            'waiting_customer_response' => ['label' => 'Menunggu Keputusan Customer', 'class' => 'bg-purple-100 text-purple-600'],
+                            'waiting_confirmation'      => ['label' => 'Menunggu Konfirmasi',         'class' => 'bg-purple-100 text-purple-600'],
+                            'completed'                 => ['label' => 'Selesai',                     'class' => 'bg-success-100 text-success-600'],
+                            'warranty'                  => ['label' => 'Masa Garansi',                'class' => 'bg-teal-100 text-teal-600'],
+                            'complained'                => ['label' => 'Dikomplain',                  'class' => 'bg-danger-100 text-danger-600'],
+                            'cancelled'                 => ['label' => 'Dibatalkan',                  'class' => 'bg-neutral-100 text-neutral-500'],
+                        ];
+                        $s = $statusMap[$order->status] ?? ['label' => $order->status, 'class' => 'bg-neutral-100 text-neutral-600'];
+                    @endphp
                     <tr>
                         <td>#{{ $order->id }}</td>
                         @if(auth()->user()->role === 'adminsuper')
@@ -50,6 +65,12 @@
                         @endif
                         <td>{{ $order->user->name ?? '-' }}</td>
                         <td>
+                            {{-- Badge perbaikan --}}
+                            @if($order->is_perbaikan)
+                                <span class="px-2 py-0.5 rounded text-xs font-bold bg-purple-100 text-purple-700 mb-1 inline-block">
+                                    🔧 Perbaikan — {{ $order->perbaikan_phase === 'phase2' ? 'Fase 2' : 'Survey' }}
+                                </span><br>
+                            @endif
                             @foreach($order->items->take(2) as $item)
                                 <span class="text-sm">{{ $item->bpService?->serviceType?->name }} x{{ $item->quantity }}</span><br>
                             @endforeach
@@ -63,15 +84,6 @@
                         </td>
                         <td>Rp {{ number_format($order->total_amount, 0, ',', '.') }}</td>
                         <td>
-                            @php
-                                $statusMap = [
-                                    'confirmed'            => ['label' => 'Dikonfirmasi', 'class' => 'bg-info-100 text-info-600'],
-                                    'in_progress'          => ['label' => 'Dikerjakan', 'class' => 'bg-warning-100 text-warning-600'],
-                                    'waiting_confirmation' => ['label' => 'Menunggu Konfirmasi', 'class' => 'bg-purple-100 text-purple-600'],
-                                    'completed'            => ['label' => 'Selesai', 'class' => 'bg-success-100 text-success-600'],
-                                ];
-                                $s = $statusMap[$order->status] ?? ['label' => $order->status, 'class' => 'bg-neutral-100 text-neutral-600'];
-                            @endphp
                             <span class="px-2 py-1 rounded-full text-xs font-medium {{ $s['class'] }}">
                                 {{ $s['label'] }}
                             </span>

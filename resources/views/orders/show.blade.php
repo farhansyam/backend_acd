@@ -15,18 +15,38 @@
     $isRelokasi    = $order->order_type === 'relokasi';
     $isDiffLoc     = $order->relocation_type === 'different_location';
     $needTransport = $isRelokasi && $isDiffLoc;
+    $isPerbaikan   = (bool) $order->is_perbaikan;
+    $isSurvey      = $isPerbaikan && $order->perbaikan_phase === 'survey';
+    $isPhase2      = $isPerbaikan && $order->perbaikan_phase === 'phase2';
+
+    // Order survey terkait (jika ini fase2, ambil survey order-nya)
+    $surveyOrder = $isPhase2 && $order->survey_order_id
+        ? \App\Models\Order::with('surveyReport.technician.user')->find($order->survey_order_id)
+        : null;
+
+    // Order fase2 terkait (jika ini survey dan sudah ada fase2)
+    $phase2Order = $isSurvey && $order->phase2_order_id
+        ? \App\Models\Order::with('items.bpService.serviceType')->find($order->phase2_order_id)
+        : null;
+
+    // Survey report
+    $surveyReport = $isSurvey
+        ? $order->surveyReport
+        : ($isPhase2 && $surveyOrder ? $surveyOrder->surveyReport : null);
 
     $statusMap = [
-        'pending'                   => ['label' => 'Menunggu Konfirmasi',          'class' => 'bg-warning-100 text-warning-600',   'icon' => 'lucide:clock'],
-        'pending_transport_fee'     => ['label' => 'Menunggu Biaya Transportasi',  'class' => 'bg-orange-100 text-orange-600',     'icon' => 'lucide:truck'],
-        'pending_transport_fee_set' => ['label' => 'Menunggu Konfirmasi Customer', 'class' => 'bg-purple-100 text-purple-600',     'icon' => 'lucide:user-check'],
-        'confirmed'                 => ['label' => 'Dikonfirmasi',                 'class' => 'bg-info-100 text-info-600',         'icon' => 'lucide:check-circle'],
-        'in_progress'               => ['label' => 'Sedang Dikerjakan',            'class' => 'bg-warning-100 text-warning-600',   'icon' => 'lucide:wrench'],
-        'waiting_confirmation'      => ['label' => 'Menunggu Konfirmasi',          'class' => 'bg-purple-100 text-purple-600',     'icon' => 'lucide:clock'],
-        'completed'                 => ['label' => 'Selesai',                      'class' => 'bg-success-100 text-success-600',   'icon' => 'lucide:badge-check'],
-        'warranty'                  => ['label' => 'Masa Garansi',                 'class' => 'bg-teal-100 text-teal-600',         'icon' => 'lucide:shield'],
-        'complained'                => ['label' => 'Dikomplain',                   'class' => 'bg-danger-100 text-danger-600',     'icon' => 'lucide:alert-triangle'],
-        'cancelled'                 => ['label' => 'Dibatalkan',                   'class' => 'bg-neutral-100 text-neutral-500',   'icon' => 'lucide:x-circle'],
+        'pending'                   => ['label' => 'Menunggu Konfirmasi',         'class' => 'bg-warning-100 text-warning-600',   'icon' => 'lucide:clock'],
+        'pending_transport_fee'     => ['label' => 'Menunggu Biaya Transportasi', 'class' => 'bg-orange-100 text-orange-600',     'icon' => 'lucide:truck'],
+        'pending_transport_fee_set' => ['label' => 'Menunggu Konfirmasi Customer','class' => 'bg-purple-100 text-purple-600',     'icon' => 'lucide:user-check'],
+        'confirmed'                 => ['label' => 'Dikonfirmasi',                'class' => 'bg-info-100 text-info-600',         'icon' => 'lucide:check-circle'],
+        'in_progress'               => ['label' => 'Sedang Dikerjakan',           'class' => 'bg-warning-100 text-warning-600',   'icon' => 'lucide:wrench'],
+        'survey_in_progress'        => ['label' => 'Survei Berlangsung',          'class' => 'bg-indigo-100 text-indigo-600',     'icon' => 'lucide:search'],
+        'waiting_customer_response' => ['label' => 'Menunggu Keputusan Customer', 'class' => 'bg-purple-100 text-purple-600',     'icon' => 'lucide:help-circle'],
+        'waiting_confirmation'      => ['label' => 'Menunggu Konfirmasi',         'class' => 'bg-purple-100 text-purple-600',     'icon' => 'lucide:clock'],
+        'completed'                 => ['label' => 'Selesai',                     'class' => 'bg-success-100 text-success-600',   'icon' => 'lucide:badge-check'],
+        'warranty'                  => ['label' => 'Masa Garansi',                'class' => 'bg-teal-100 text-teal-600',         'icon' => 'lucide:shield'],
+        'complained'                => ['label' => 'Dikomplain',                  'class' => 'bg-danger-100 text-danger-600',     'icon' => 'lucide:alert-triangle'],
+        'cancelled'                 => ['label' => 'Dibatalkan',                  'class' => 'bg-neutral-100 text-neutral-500',   'icon' => 'lucide:x-circle'],
     ];
     $s = $statusMap[$order->status] ?? ['label' => $order->status, 'class' => 'bg-neutral-100 text-neutral-600', 'icon' => 'lucide:circle'];
 @endphp
@@ -44,16 +64,44 @@
     </div>
 @endif
 
-{{-- Banner relokasi beda lokasi --}}
+{{-- Banner relokasi --}}
 @if($needTransport && $order->status === 'pending_transport_fee')
     <div class="bg-orange-50 border border-orange-200 rounded-xl px-5 py-4 mb-6 flex items-start gap-3">
         <iconify-icon icon="lucide:truck" class="text-orange-500 text-xl mt-0.5"></iconify-icon>
         <div>
             <p class="font-semibold text-orange-700">Order Relokasi — Beda Lokasi</p>
-            <p class="text-sm text-orange-600 mt-1">
-                Customer menunggu Anda menentukan biaya transportasi.
-                Setelah diset, customer akan mendapat notifikasi untuk konfirmasi.
+            <p class="text-sm text-orange-600 mt-1">Customer menunggu Anda menentukan biaya transportasi.</p>
+        </div>
+    </div>
+@endif
+
+{{-- Banner perbaikan --}}
+@if($isPerbaikan)
+    <div class="bg-purple-50 border border-purple-200 rounded-xl px-5 py-4 mb-6 flex items-start gap-3">
+        <iconify-icon icon="lucide:wrench" class="text-purple-500 text-xl mt-0.5"></iconify-icon>
+        <div class="flex-1">
+            <p class="font-semibold text-purple-700">
+                Service Perbaikan —
+                @if($isSurvey) Fase 1: Survey
+                @else Fase 2: {{ $surveyReport?->rekomendasi === 'cuci_unit' ? 'Cuci Unit' : 'Perbaikan' }}
+                @endif
             </p>
+            <p class="text-sm text-purple-600 mt-1">
+                @if($isSurvey)
+                    Teknisi akan datang untuk survey kondisi AC. Hasil survey akan menentukan tindakan selanjutnya.
+                @else
+                    Lanjutan dari order survey
+                    @if($surveyOrder)
+                        <a href="{{ route('orders.show', $surveyOrder->id) }}" class="underline font-medium">#{{ $surveyOrder->id }}</a>.
+                    @endif
+                @endif
+            </p>
+            @if($isSurvey && $phase2Order)
+                <p class="text-sm text-purple-600 mt-1">
+                    Customer sudah lanjut ke
+                    <a href="{{ route('orders.show', $phase2Order->id) }}" class="underline font-medium">Order Fase 2 #{{ $phase2Order->id }}</a>.
+                </p>
+            @endif
         </div>
     </div>
 @endif
@@ -76,20 +124,153 @@
                         {{ $s['label'] }}
                     </span>
                 </div>
-                @if($isRelokasi)
-                    <div class="mt-2 flex items-center gap-2">
+                <div class="flex flex-wrap gap-2 mt-2">
+                    @if($isRelokasi)
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
                             🚚 Relokasi — {{ $isDiffLoc ? 'Beda Lokasi' : '1 Lokasi' }}
                         </span>
                         @if($order->split_technician)
                             <span class="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
-                                👥 2 Teknisi Berbeda
+                                👥 2 Teknisi
                             </span>
                         @endif
-                    </div>
-                @endif
+                    @endif
+                    @if($isPerbaikan)
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
+                            🔧 Perbaikan — {{ $isSurvey ? 'Fase 1 Survey' : 'Fase 2' }}
+                        </span>
+                    @endif
+                </div>
             </div>
         </div>
+
+        {{-- Survey Report (jika ada) --}}
+        @if($surveyReport)
+        <div class="card border-0 border-l-4 border-indigo-400">
+            <div class="card-header border-b border-neutral-200 dark:border-neutral-600 py-3 px-5">
+                <h6 class="font-semibold text-sm mb-0 flex items-center gap-2">
+                    <iconify-icon icon="lucide:clipboard-list" class="text-indigo-600"></iconify-icon>
+                    Hasil Report Survey
+                </h6>
+            </div>
+            <div class="card-body p-5 space-y-4">
+
+                {{-- Foto Before/After --}}
+                @if($surveyReport->photo_before || $surveyReport->photo_after)
+                <div class="grid grid-cols-2 gap-3">
+                    @if($surveyReport->photo_before)
+                    <div>
+                        <p class="text-xs text-secondary-light mb-1 font-medium">📷 Sebelum</p>
+                        <img src="{{ asset('storage/' . $surveyReport->photo_before) }}"
+                            class="w-full rounded-lg object-cover" style="height:150px;"
+                            alt="Before">
+                    </div>
+                    @endif
+                    @if($surveyReport->photo_after)
+                    <div>
+                        <p class="text-xs text-secondary-light mb-1 font-medium">📷 Sesudah</p>
+                        <img src="{{ asset('storage/' . $surveyReport->photo_after) }}"
+                            class="w-full rounded-lg object-cover" style="height:150px;"
+                            alt="After">
+                    </div>
+                    @endif
+                </div>
+                @endif
+
+                {{-- Detail --}}
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-xs text-secondary-light font-medium mb-1">Kondisi Unit</p>
+                        @php
+                            $kondisiClass = match($surveyReport->kondisi_unit) {
+                                'rusak' => 'bg-danger-100 text-danger-600',
+                                'kotor' => 'bg-warning-100 text-warning-600',
+                                default => 'bg-success-100 text-success-600',
+                            };
+                            $kondisiLabel = match($surveyReport->kondisi_unit) {
+                                'rusak' => 'Rusak',
+                                'kotor' => 'Kotor',
+                                default => 'Normal',
+                            };
+                        @endphp
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold {{ $kondisiClass }}">
+                            {{ $kondisiLabel }}
+                        </span>
+                    </div>
+                    <div>
+                        <p class="text-xs text-secondary-light font-medium mb-1">Rekomendasi</p>
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold bg-primary-100 text-primary-600">
+                            {{ $surveyReport->rekomendasi === 'cuci_unit' ? '🫧 Cuci Unit' : '🔩 Perbaikan' }}
+                        </span>
+                    </div>
+                </div>
+
+                {{-- Bagian bermasalah --}}
+                @if($surveyReport->bagian_bermasalah && count($surveyReport->bagian_bermasalah) > 0)
+                <div>
+                    <p class="text-xs text-secondary-light font-medium mb-2">Bagian Bermasalah</p>
+                    <div class="flex flex-wrap gap-1">
+                        @foreach($surveyReport->bagian_bermasalah as $bagian)
+                            <span class="px-2 py-1 bg-danger-50 text-danger-600 rounded text-xs">{{ $bagian }}</span>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
+                {{-- Catatan --}}
+                @if($surveyReport->catatan)
+                <div>
+                    <p class="text-xs text-secondary-light font-medium mb-1">Catatan Teknisi</p>
+                    <p class="text-sm bg-neutral-50 rounded-lg p-3">{{ $surveyReport->catatan }}</p>
+                </div>
+                @endif
+
+                {{-- Respon customer --}}
+                <div class="border-t border-neutral-100 pt-3">
+                    <p class="text-xs text-secondary-light font-medium mb-2">Keputusan Customer</p>
+                    @if($surveyReport->customer_response)
+                        @if($surveyReport->customer_response === 'lanjut')
+                            <div class="flex items-center gap-2 text-success-600 font-medium text-sm">
+                                <iconify-icon icon="lucide:check-circle"></iconify-icon>
+                                Lanjut ke Fase 2
+                                @if($surveyReport->responded_at)
+                                    <span class="text-secondary-light font-normal text-xs">
+                                        · {{ \Carbon\Carbon::parse($surveyReport->responded_at)->format('d M Y H:i') }}
+                                    </span>
+                                @endif
+                            </div>
+                            @if($phase2Order || $surveyOrder)
+                                @php $linkedOrder = $phase2Order ?? ($isPhase2 ? $order : null); @endphp
+                                @if($linkedOrder)
+                                <a href="{{ route('orders.show', $linkedOrder->id) }}"
+                                   class="mt-2 inline-flex items-center gap-1 text-xs text-primary-600 underline">
+                                    <iconify-icon icon="lucide:external-link"></iconify-icon>
+                                    Lihat Order Fase 2 #{{ $linkedOrder->id }}
+                                </a>
+                                @endif
+                            @endif
+                        @else
+                            <div class="flex items-center gap-2 text-danger-600 font-medium text-sm">
+                                <iconify-icon icon="lucide:x-circle"></iconify-icon>
+                                Tidak Lanjut
+                                @if($surveyReport->responded_at)
+                                    <span class="text-secondary-light font-normal text-xs">
+                                        · {{ \Carbon\Carbon::parse($surveyReport->responded_at)->format('d M Y H:i') }}
+                                    </span>
+                                @endif
+                            </div>
+                        @endif
+                    @else
+                        <span class="text-xs text-warning-600 flex items-center gap-1">
+                            <iconify-icon icon="lucide:clock"></iconify-icon>
+                            Menunggu keputusan customer
+                        </span>
+                    @endif
+                </div>
+
+            </div>
+        </div>
+        @endif
 
         {{-- Customer --}}
         <div class="card border-0">
@@ -121,7 +302,6 @@
                 </h6>
             </div>
             <div class="card-body p-5 space-y-4">
-                {{-- Jadwal --}}
                 <div class="flex items-center gap-3">
                     <div class="w-9 h-9 bg-info-100 rounded-lg flex items-center justify-center flex-shrink-0">
                         <iconify-icon icon="lucide:calendar" class="text-info-600"></iconify-icon>
@@ -134,7 +314,6 @@
                     </div>
                 </div>
 
-                {{-- Alamat Asal (relokasi beda lokasi) --}}
                 @if($isRelokasi && $isDiffLoc && $order->originAddress)
                 <div class="flex items-start gap-3">
                     <div class="w-9 h-9 bg-warning-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -148,13 +327,14 @@
                 </div>
                 @endif
 
-                {{-- Alamat Tujuan --}}
                 <div class="flex items-start gap-3">
                     <div class="w-9 h-9 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
                         <iconify-icon icon="lucide:map-pin" class="text-primary-600"></iconify-icon>
                     </div>
                     <div>
-                        <p class="text-xs text-secondary-light">{{ $isRelokasi && $isDiffLoc ? 'Lokasi Tujuan (Pasang)' : 'Lokasi' }}</p>
+                        <p class="text-xs text-secondary-light">
+                            {{ $isRelokasi && $isDiffLoc ? 'Lokasi Tujuan (Pasang)' : 'Lokasi' }}
+                        </p>
                         <p class="font-semibold text-sm">{{ $order->address?->label }}</p>
                         <p class="text-sm text-secondary-light">{{ $order->address?->formatted_address }}</p>
                         @if($order->address?->notes)
@@ -163,10 +343,9 @@
                     </div>
                 </div>
 
-                {{-- Peta --}}
                 @if($order->address?->latitude && $order->address?->longitude)
                 <div>
-                    <p class="text-xs text-secondary-light mb-2">Peta Lokasi Tujuan</p>
+                    <p class="text-xs text-secondary-light mb-2">Peta Lokasi</p>
                     <div id="map" class="w-full rounded-lg overflow-hidden border border-neutral-200" style="height:220px;z-index:0;"></div>
                 </div>
                 @endif
@@ -212,6 +391,25 @@
                     </div>
                     @endforeach
 
+                    {{-- Jika ini fase survey dan ada fase2, tampilkan total gabungan --}}
+                    @if($isSurvey && $phase2Order)
+                    <div class="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-100">
+                        <p class="text-xs font-semibold text-purple-700 mb-2">💡 Total Gabungan (Survey + Fase 2)</p>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-secondary-light">Biaya Survey</span>
+                            <span>Rp {{ number_format($order->total_amount, 0, ',', '.') }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-secondary-light">Biaya Fase 2</span>
+                            <span>Rp {{ number_format($phase2Order->total_amount, 0, ',', '.') }}</span>
+                        </div>
+                        <div class="flex justify-between font-bold text-sm mt-2 pt-2 border-t border-purple-200">
+                            <span>Total</span>
+                            <span class="text-purple-700">Rp {{ number_format($order->total_amount + $phase2Order->total_amount, 0, ',', '.') }}</span>
+                        </div>
+                    </div>
+                    @endif
+
                     <div class="pt-2 space-y-1">
                         @if($order->discount_amount > 0)
                         <div class="flex justify-between text-sm">
@@ -234,7 +432,7 @@
                         </div>
                         @endif
                         <div class="flex justify-between font-bold text-base pt-2 border-t border-neutral-200 dark:border-neutral-600">
-                            <span>Total</span>
+                            <span>Total Order Ini</span>
                             <span class="text-primary-600">Rp {{ number_format($order->total_amount, 0, ',', '.') }}</span>
                         </div>
                     </div>
@@ -247,8 +445,45 @@
     {{-- ===== KOLOM KANAN ===== --}}
     <div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
 
-        {{-- Set Biaya Transportasi (relokasi beda lokasi, belum diset) --}}
-        @if($needTransport && in_array($order->status, ['pending_transport_fee']))
+        {{-- Link order terkait (perbaikan) --}}
+        @if($isSurvey && $phase2Order)
+        <div class="card border-0 border-l-4 border-purple-400">
+            <div class="card-body p-5">
+                <p class="text-xs font-semibold text-purple-700 mb-2 flex items-center gap-1">
+                    <iconify-icon icon="lucide:link"></iconify-icon> Order Terkait
+                </p>
+                <a href="{{ route('orders.show', $phase2Order->id) }}"
+                   class="flex items-center justify-between p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition">
+                    <div>
+                        <p class="font-semibold text-sm text-purple-700">Order Fase 2 #{{ $phase2Order->id }}</p>
+                        <p class="text-xs text-purple-600">{{ $phase2Order->items->first()?->bpService?->serviceType?->name ?? '-' }}</p>
+                    </div>
+                    <iconify-icon icon="lucide:arrow-right" class="text-purple-500"></iconify-icon>
+                </a>
+            </div>
+        </div>
+        @endif
+
+        @if($isPhase2 && $surveyOrder)
+        <div class="card border-0 border-l-4 border-indigo-400">
+            <div class="card-body p-5">
+                <p class="text-xs font-semibold text-indigo-700 mb-2 flex items-center gap-1">
+                    <iconify-icon icon="lucide:link"></iconify-icon> Order Terkait
+                </p>
+                <a href="{{ route('orders.show', $surveyOrder->id) }}"
+                   class="flex items-center justify-between p-3 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                    <div>
+                        <p class="font-semibold text-sm text-indigo-700">Order Survey #{{ $surveyOrder->id }}</p>
+                        <p class="text-xs text-indigo-600">Fase 1 — Survey</p>
+                    </div>
+                    <iconify-icon icon="lucide:arrow-right" class="text-indigo-500"></iconify-icon>
+                </a>
+            </div>
+        </div>
+        @endif
+
+        {{-- Set Biaya Transportasi --}}
+        @if($needTransport && $order->status === 'pending_transport_fee')
         <div class="card border-0 border-l-4 border-orange-400">
             <div class="card-header border-b border-neutral-200 dark:border-neutral-600 py-3 px-5">
                 <h6 class="font-semibold text-sm mb-0 flex items-center gap-2">
@@ -257,10 +492,6 @@
                 </h6>
             </div>
             <div class="card-body p-5">
-                <p class="text-sm text-secondary-light mb-4">
-                    Tentukan biaya transportasi berdasarkan jarak antara lokasi asal dan tujuan.
-                    Customer akan dikonfirmasi sebelum melanjutkan pembayaran.
-                </p>
                 <form action="{{ route('orders.setTransportFee', $order) }}" method="POST" class="space-y-4">
                     @csrf
                     <div>
@@ -268,9 +499,7 @@
                             Biaya Transportasi (Rp) <span class="text-danger-600">*</span>
                         </label>
                         <input type="number" name="transport_fee" min="0" step="1000"
-                            class="form-control radius-8"
-                            placeholder="Contoh: 50000" required>
-                        <p class="text-xs text-secondary-light mt-1">Referensi: estimasi biaya Lalamove/Grab Express</p>
+                            class="form-control radius-8" placeholder="Contoh: 50000" required>
                     </div>
                     <button type="submit" class="btn btn-warning-600 w-full flex items-center justify-center gap-2">
                         <iconify-icon icon="lucide:send"></iconify-icon>
@@ -281,7 +510,6 @@
         </div>
         @endif
 
-        {{-- Info transport fee sudah diset, menunggu customer --}}
         @if($needTransport && $order->status === 'pending_transport_fee_set')
         <div class="card border-0">
             <div class="card-body p-5">
@@ -302,7 +530,7 @@
             <div class="card-header border-b border-neutral-200 dark:border-neutral-600 py-3 px-5">
                 <h6 class="font-semibold text-sm mb-0 flex items-center gap-2">
                     <iconify-icon icon="lucide:user-check" class="text-primary-600"></iconify-icon>
-                    {{ $isRelokasi && $isDiffLoc ? 'Teknisi Bongkar' : 'Teknisi' }}
+                    Teknisi
                 </h6>
             </div>
             <div class="card-body p-5">
@@ -336,8 +564,7 @@
                             @csrf
                             <div>
                                 <label class="form-label fw-semibold text-primary-light text-sm mb-2">
-                                    Pilih Teknisi {{ $isRelokasi && $isDiffLoc ? '(Bongkar)' : '' }}
-                                    <span class="text-danger-600">*</span>
+                                    Pilih Teknisi <span class="text-danger-600">*</span>
                                 </label>
                                 <select name="technician_id" class="form-control radius-8" required>
                                     <option value="">-- Pilih Teknisi --</option>
@@ -349,7 +576,6 @@
                                 </select>
                             </div>
 
-                            {{-- Opsi 2 teknisi (relokasi beda lokasi) --}}
                             @if($isRelokasi && $isDiffLoc)
                             <div>
                                 <div class="flex items-center gap-2 mb-3">
@@ -380,7 +606,7 @@
                                     Catatan untuk Teknisi
                                 </label>
                                 <textarea name="notes" class="form-control radius-8" rows="2"
-                                    placeholder="Catatan khusus...">{{ old('notes') }}</textarea>
+                                    placeholder="Catatan khusus..."></textarea>
                             </div>
                             <button type="submit" class="btn btn-primary-600 w-full flex items-center justify-center gap-2">
                                 <iconify-icon icon="lucide:user-plus"></iconify-icon>
@@ -393,7 +619,7 @@
             </div>
         </div>
 
-        {{-- Teknisi Pasang (relokasi beda lokasi, 2 teknisi) --}}
+        {{-- Teknisi Pasang (relokasi 2 teknisi) --}}
         @if($isRelokasi && $isDiffLoc && $order->split_technician)
         <div class="card border-0">
             <div class="card-header border-b border-neutral-200 dark:border-neutral-600 py-3 px-5">

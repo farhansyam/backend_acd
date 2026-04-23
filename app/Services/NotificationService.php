@@ -193,4 +193,32 @@ class NotificationService
             ['type' => 'withdraw_rejected', 'amount' => (string) $amount]
         );
     }
+
+    // app/Services/NotificationService.php — tambah 2 method baru
+
+    /**
+     * Notifikasi ke customer — hasil survey siap dilihat
+     */
+    public function notifySurveyResult(string $fcmToken, int $orderId): void
+    {
+        $this->sendToDevice(
+            $fcmToken,
+            '🔍 Hasil Survey AC Anda',
+            "Teknisi telah menyelesaikan survei pesanan #$orderId. Cek hasil dan pilih tindakan selanjutnya.",
+            ['type' => 'survey_result', 'order_id' => (string) $orderId]
+        );
+    }
+
+    /**
+     * Notifikasi ke teknisi — customer lanjut ke fase 2
+     */
+    public function notifyPhase2Confirmed(string $fcmToken, int $orderId): void
+    {
+        $this->sendToDevice(
+            $fcmToken,
+            '✅ Customer Lanjut ke Fase 2',
+            "Customer menyetujui untuk melanjutkan. Silakan kerjakan pesanan #$orderId.",
+            ['type' => 'phase2_confirmed', 'order_id' => (string) $orderId]
+        );
+    }
 }

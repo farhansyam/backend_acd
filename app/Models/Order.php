@@ -109,6 +109,21 @@ class Order extends Model
         return $this->belongsTo(Technician::class, 'second_technician_id');
     }
 
+    public function surveyReport(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(SurveyReport::class);
+    }
+
+    public function phase2Order(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Order::class, 'phase2_order_id');
+    }
+
+    public function surveyOrder(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Order::class, 'survey_order_id');
+    }
+
     public function getStatusLabelAttribute(): string
     {
         return match ($this->status) {

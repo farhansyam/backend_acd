@@ -53,8 +53,17 @@ class OrderAssignController extends Controller
             abort_if($order->bp_id !== $bp->id, 403);
         }
 
-        $order->load(['address', 'items.bpService.serviceType', 'technician.user', 'user', 'secondTechnician.user']);
-
+        $order->load([
+            'user',
+            'phone',
+            'address',
+            'originAddress',
+            'businessPartner',
+            'technician.user',
+            'secondTechnician.user',
+            'items.bpService.serviceType',
+            'surveyReport.technician.user',  // ← tambah ini
+        ]);
         $technicians = collect();
         if ($user->role === 'adminsuper') {
             $technicians = Technician::with('user')
