@@ -32,6 +32,7 @@ class Order extends Model
         'status',
         'notes',
         'technician_id',
+        'auto_complete_at',       // ← tambah
         'warranty_expires_at',
         'warranty_started_at',
         'relocation_type',
@@ -42,19 +43,21 @@ class Order extends Model
         'order_type',
         'keluhan',
         'keluhan_lainnya',
-        'is_perbaikan'
+        'is_perbaikan',
+        'perbaikan_phase',        // ← tambah
+        'phase2_order_id',        // ← tambah
+        'survey_order_id',        // ← tambah
     ];
-
     protected $casts = [
         'scheduled_date'      => 'date',
-        'warranty_expires_at' => 'datetime', // ← tambah
-        'warranty_started_at' => 'datetime', // ← tambah
-        'auto_complete_at'    => 'datetime', // ← tambah kalau belum ada
-        'paid_at'             => 'datetime', // ← tambah kalau belum ada
-        'split_technician' => 'boolean',
-        'transport_fee'    => 'decimal:2',
-        'keluhan'      => 'array',
-
+        'warranty_expires_at' => 'datetime',
+        'warranty_started_at' => 'datetime',
+        'auto_complete_at'    => 'datetime',
+        'paid_at'             => 'datetime',
+        'split_technician'    => 'boolean',
+        'is_perbaikan'        => 'boolean',   // ← tambah
+        'transport_fee'       => 'decimal:2',
+        'keluhan'             => 'array',
     ];
 
     public function user(): BelongsTo
