@@ -252,12 +252,15 @@ class OrderController extends Controller
     public function createPerbaikanOrder(Request $request)
     {
         $request->validate([
-            'bp_service_id'  => 'required|exists:bp_services,id',
-            'address_id'     => 'required|exists:addresses,id',
-            'user_phone_id'  => 'required|exists:user_phones,id',
-            'scheduled_date' => 'required|date|after_or_equal:today',
-            'scheduled_time' => 'required|in:' . implode(',', self::TIME_SLOTS),
-            'notes'          => 'nullable|string|max:500',
+            'bp_service_id'    => 'required|exists:bp_services,id',
+            'address_id'       => 'required|exists:addresses,id',
+            'user_phone_id'    => 'required|exists:user_phones,id',
+            'scheduled_date'   => 'required|date|after_or_equal:today',
+            'scheduled_time'   => 'required|in:' . implode(',', self::TIME_SLOTS),
+            'notes'            => 'nullable|string|max:500',
+            'keluhan'          => 'nullable|array',
+            'keluhan.*'        => 'string',
+            'keluhan_lainnya'  => 'nullable|string|max:500',
         ]);
 
         /** @var \App\Models\BpService $bpService */
@@ -280,21 +283,23 @@ class OrderController extends Controller
 
         /** @var \App\Models\Order $order */
         $order = Order::create([
-            'user_id'         => $request->user()->id,
-            'bp_id'           => $bpService->bp_id,
-            'address_id'      => $request->address_id,
-            'user_phone_id'   => $request->user_phone_id,
-            'scheduled_date'  => $request->scheduled_date,
-            'scheduled_time'  => $request->scheduled_time,
-            'notes'           => $request->notes,
-            'subtotal'        => $bpService->base_service,
-            'total_amount'    => $bpService->base_service,
-            'order_type'      => 'perbaikan',
-            'is_perbaikan'    => true,
-            'perbaikan_phase' => 'survey',
-            'status'          => 'pending',
-            'payment_status'  => 'unpaid',
-            'transport_fee'   => 0,
+            'user_id'          => $request->user()->id,
+            'bp_id'            => $bpService->bp_id,
+            'address_id'       => $request->address_id,
+            'user_phone_id'    => $request->user_phone_id,
+            'scheduled_date'   => $request->scheduled_date,
+            'scheduled_time'   => $request->scheduled_time,
+            'notes'            => $request->notes,
+            'keluhan'          => $request->keluhan ?? [],
+            'keluhan_lainnya'  => $request->keluhan_lainnya,
+            'subtotal'         => $bpService->base_service,
+            'total_amount'     => $bpService->base_service,
+            'order_type'       => 'perbaikan',
+            'is_perbaikan'     => true,
+            'perbaikan_phase'  => 'survey',
+            'status'           => 'pending',
+            'payment_status'   => 'unpaid',
+            'transport_fee'    => 0,
             'apartment_surcharge' => $address->property_type === 'apartemen'
                 ? self::APARTMENT_SURCHARGE : 0,
         ]);
@@ -471,6 +476,8 @@ class OrderController extends Controller
             'subtotal'               => (float) $order->subtotal,
             'total_amount'           => (float) $order->total_amount,
             'notes'                  => $order->notes,
+            'keluhan'         => $order->keluhan ?? [],
+            'keluhan_lainnya' => $order->keluhan_lainnya,
             'bp_name'                => $order->businessPartner?->name ?? '-',
             'phone'                  => [
                 'label'        => $order->phone?->label,

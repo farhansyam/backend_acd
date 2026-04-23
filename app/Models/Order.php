@@ -48,6 +48,8 @@ class Order extends Model
         'paid_at'             => 'datetime', // ← tambah kalau belum ada
         'split_technician' => 'boolean',
         'transport_fee'    => 'decimal:2',
+        'keluhan'      => 'array',
+        'is_perbaikan' => 'boolean',
 
     ];
 

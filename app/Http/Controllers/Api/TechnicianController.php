@@ -36,14 +36,17 @@ class TechnicianController extends Controller
                 $q->where('technician_id', $technician->id)
                     ->orWhere('second_technician_id', $technician->id);
             })
+            // SESUDAH
             ->whereIn('status', [
                 'confirmed',
                 'in_progress',
+                'survey_in_progress',        // ← tambah
+                'waiting_customer_response', // ← tambah
                 'disassembled',
                 'waiting_confirmation',
                 'completed',
-                'warranty',   // ← tambah
-                'complained', // ← tambah
+                'warranty',
+                'complained',
             ])
             ->orderByDesc('scheduled_date')
             ->orderByDesc('created_at')
@@ -362,7 +365,13 @@ class TechnicianController extends Controller
                 $q->where('technician_id', $technician->id)
                     ->orWhere('second_technician_id', $technician->id);
             })
-            ->whereIn('status', ['confirmed', 'in_progress', 'disassembled']) // ← tambah disassembled
+            ->whereIn('status', [
+                'confirmed',
+                'in_progress',
+                'survey_in_progress',
+                'waiting_customer_response',
+                'disassembled',
+            ])
             ->latest()
             ->first();
 
@@ -400,7 +409,6 @@ class TechnicianController extends Controller
     private function formatOrder(Order $order, ?Technician $technician = null): array
     {
         return [
-            // Tambah di formatOrder:
             'is_second_technician' => $order->second_technician_id === $technician?->id,
             'id'               => $order->id,
             'status'           => $order->status,
@@ -414,6 +422,12 @@ class TechnicianController extends Controller
             'relocation_type'  => $order->relocation_type,
             'transport_fee'    => (float) $order->transport_fee,
             'split_technician' => (bool) $order->split_technician,
+            // ─── Perbaikan fields ───────────────────────────
+            'is_perbaikan'     => (bool) $order->is_perbaikan,    // ← tambah
+            'perbaikan_phase'  => $order->perbaikan_phase,        // ← tambah
+            'phase2_order_id'  => $order->phase2_order_id,        // ← tambah
+            'survey_order_id'  => $order->survey_order_id,        // ← tambah
+            // ────────────────────────────────────────────────
             'customer' => [
                 'name'  => $order->user?->name ?? '-',
                 'email' => $order->user?->email ?? '-',
