@@ -36,7 +36,7 @@ class ServiceTypeController extends Controller
         $request->validate([
             'name'        => 'required|string|max:255|unique:service_types,name',
             'description' => 'nullable|string',
-            'category' => 'required|in:cuci_reguler,pasang_baru,unit,relokasi,relokasi_bongkar,relokasi_pasang,perbaikan',
+
             'is_active'   => 'required|in:0,1',
         ]);
 
@@ -56,7 +56,6 @@ class ServiceTypeController extends Controller
         $request->validate([
             'name'        => 'required|string|max:255|unique:service_types,name,' . $serviceType->id,
             'description' => 'nullable|string',
-            'category' => 'required|in:cuci_reguler,pasang_baru,unit,relokasi,relokasi_bongkar,relokasi_pasang,perbaikan',
             'is_active'   => 'required|in:0,1',
         ]);
 
