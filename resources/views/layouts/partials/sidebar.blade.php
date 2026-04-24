@@ -62,7 +62,12 @@
                         <span>Orders</span>
                     </a>
                 </li>
-
+                <li>
+                    <a href="{{ route('subscriptions.index') }}" class="{{ request()->is('subscriptions*') ? 'active-page' : '' }}">
+                        <iconify-icon icon="lucide:calendar-check" class="menu-icon"></iconify-icon>
+                        <span>Cuci Langganan</span>
+                    </a>
+                </li>
                 <li>
                     <a href="{{ route('complaints.index') }}" class="{{ request()->is('complaints*') ? 'active-page' : '' }}">
                         <iconify-icon icon="mage:message-question-mark-round" class="menu-icon"></iconify-icon>
@@ -147,7 +152,12 @@
                         <span>Order Area Saya</span>
                     </a>
                 </li>
-
+                <li>
+                    <a href="{{ route('subscriptions.index') }}" class="{{ request()->is('subscriptions*') ? 'active-page' : '' }}">
+                        <iconify-icon icon="lucide:calendar-check" class="menu-icon"></iconify-icon>
+                        <span>Cuci Langganan</span>
+                    </a>
+                </li>
                 <li>
                     <a href="{{ route('complaints.index') }}" class="{{ request()->is('complaints*') ? 'active-page' : '' }}">
                         <iconify-icon icon="mage:message-question-mark-round" class="menu-icon"></iconify-icon>

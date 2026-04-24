@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AcdBalance;
 use App\Models\BalanceTransaction;
+use App\Models\SubscriptionSession;
 use App\Models\Order;
 use App\Models\Technician;
 use App\Models\BusinessPartner;
@@ -451,5 +452,115 @@ class BalanceService
         }
 
         Log::info('Released held balances', ['count' => $pendingTransactions->count()]);
+    }
+    public function releaseSubscriptionSessionEarning(SubscriptionSession $session): void
+    {
+        $subscription = $session->subscription()->with('package')->first();
+
+        if (!$session->technician_id) {
+            Log::warning('Cannot distribute subscription session: no technician', [
+                'session_id' => $session->id,
+            ]);
+            return;
+        }
+
+        $technician = Technician::find($session->technician_id);
+        $bp         = BusinessPartner::find($subscription->bp_id);
+
+        if (!$technician || !$bp) {
+            Log::warning('Cannot distribute subscription session: technician or BP not found', [
+                'session_id'    => $session->id,
+                'technician_id' => $session->technician_id,
+                'bp_id'         => $subscription->bp_id,
+            ]);
+            return;
+        }
+
+        $grade = $technician->grade ?? 'beginner';
+        $rates = self::GRADE_RATES[$grade] ?? self::GRADE_RATES['beginner'];
+
+        // Earning per sesi = total yang dibayar customer / jumlah sesi paket
+        $earningPerSession = round(
+            (float) $subscription->total_amount / $subscription->package->total_sessions,
+            2
+        );
+
+        $techShare = round($earningPerSession * $rates['technician'] / 100, 2);
+        $bpShare   = round($earningPerSession * $rates['bp'] / 100, 2);
+        $acdShare  = round($earningPerSession * $rates['acd'] / 100, 2);
+
+        DB::transaction(function () use (
+            $session,
+            $subscription,
+            $technician,
+            $bp,
+            $techShare,
+            $bpShare,
+            $acdShare,
+            $grade,
+            $rates,
+            $earningPerSession
+        ) {
+            $desc = "Sesi ke-{$session->session_number} langganan #{$subscription->id}";
+
+            // ─── Teknisi — langsung (customer sudah konfirmasi, tidak perlu hold) ───
+            $techBefore = (float) $technician->balance;
+            $technician->increment('balance', $techShare);
+            BalanceTransaction::create([
+                'owner_type'     => Technician::class,
+                'owner_id'       => $technician->id,
+                'order_id'       => null,
+                'type'           => 'release',
+                'amount'         => $techShare,
+                'balance_before' => $techBefore,
+                'balance_after'  => $techBefore + $techShare,
+                'description'    => "Pendapatan {$desc} (grade: {$grade}, {$rates['technician']}%)",
+                'status'         => 'completed',
+                'release_at'     => null,
+            ]);
+
+            // ─── BP — langsung ────────────────────────────────────────────────────
+            $bpBefore = (float) $bp->balance;
+            $bp->increment('balance', $bpShare);
+            BalanceTransaction::create([
+                'owner_type'     => BusinessPartner::class,
+                'owner_id'       => $bp->id,
+                'order_id'       => null,
+                'type'           => 'release',
+                'amount'         => $bpShare,
+                'balance_before' => $bpBefore,
+                'balance_after'  => $bpBefore + $bpShare,
+                'description'    => "Pendapatan {$desc} ({$rates['bp']}%)",
+                'status'         => 'completed',
+                'release_at'     => null,
+            ]);
+
+            // ─── ACD — langsung ───────────────────────────────────────────────────
+            $acd = AcdBalance::getInstance();
+            $acd->increment('balance', $acdShare);
+            $acd->increment('total_earned', $acdShare);
+            BalanceTransaction::create([
+                'owner_type'     => AcdBalance::class,
+                'owner_id'       => $acd->id,
+                'order_id'       => null,
+                'type'           => 'earning',
+                'amount'         => $acdShare,
+                'balance_before' => (float) $acd->balance - $acdShare,
+                'balance_after'  => (float) $acd->balance,
+                'description'    => "Pendapatan ACD {$desc} ({$rates['acd']}%)",
+                'status'         => 'completed',
+                'release_at'     => null,
+            ]);
+        });
+
+        Log::info('Subscription session balance distributed', [
+            'session_id'        => $session->id,
+            'subscription_id'   => $subscription->id,
+            'session_number'    => $session->session_number,
+            'earning_per_session' => $earningPerSession,
+            'tech_share'        => $techShare,
+            'bp_share'          => $bpShare,
+            'acd_share'         => $acdShare,
+        ]);
     }
 }

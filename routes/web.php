@@ -14,6 +14,7 @@ use App\Http\Controllers\WithdrawalController;
 use App\Http\Controllers\CouponController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\SubscriptionWebController;
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\OrderAssignController;
 
@@ -76,6 +77,10 @@ Route::middleware(['auth', 'role:adminsuper,business_partner'])->group(function 
     Route::patch('bp-technicians/{technician}/update-grade', [TechnicianController::class, 'updateGrade'])->name('bp-technicians.update-grade');
     Route::patch('bp-technicians/{technician}/suspend',      [TechnicianController::class, 'suspend'])->name('bp-technicians.suspend');
     Route::patch('bp-technicians/{technician}/activate',     [TechnicianController::class, 'activate'])->name('bp-technicians.activate');
+
+    Route::get('subscriptions',                                                  [SubscriptionWebController::class, 'index'])->name('subscriptions.index');
+    Route::get('subscriptions/{subscription}',                                   [SubscriptionWebController::class, 'show'])->name('subscriptions.show');
+    Route::post('subscriptions/{subscription}/sessions/{session}/assign',        [SubscriptionWebController::class, 'assignSession'])->name('subscriptions.sessions.assign');
 });
 
 
