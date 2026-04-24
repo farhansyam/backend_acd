@@ -73,4 +73,8 @@ class User extends Authenticatable
     {
         return $this->hasMany(\App\Models\Order::class);
     }
+    public function technician(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Models\Technician::class);
+    }
 }
