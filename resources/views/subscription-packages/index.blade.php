@@ -110,7 +110,6 @@
             </div>
         </div>
         <button class="btn btn-primary-600 flex items-center gap-2"
-                data-bs-toggle="modal" data-bs-target="#packageModal"
                 onclick="openCreateModal()">
             <iconify-icon icon="lucide:plus"></iconify-icon> Tambah Paket
         </button>
@@ -210,8 +209,7 @@
                                     {{ $package->price_multiplier }},
                                     '{{ addslashes($package->description ?? '') }}',
                                     {{ $package->is_active ? 1 : 0 }}
-                                )"
-                                data-bs-toggle="modal" data-bs-target="#packageModal">
+                                )">
                             <iconify-icon icon="lucide:pencil" class="mr-1"></iconify-icon>
                             <span class="text-xs font-medium">Edit</span>
                         </button>
@@ -385,6 +383,10 @@ const TYPE_NOTES = {
     intensif: '⚡ Cuci 12× setahun, tiap bulan — untuk lingkungan berdebu.',
 };
 
+function getModal() {
+    return new bootstrap.Modal(document.getElementById('packageModal'));
+}
+
 function handleTypeChange(val) {
     document.getElementById('typeNote').textContent = TYPE_NOTES[val] ?? '';
 }
@@ -393,14 +395,15 @@ function openCreateModal() {
     const form = document.getElementById('packageForm');
     form.reset();
     form.action = '{{ route("subscription-packages.store") }}';
-    document.getElementById('formMethod').value    = 'POST';
-    document.getElementById('modalTitle').textContent  = 'Tambah Paket';
+    document.getElementById('formMethod').value            = 'POST';
+    document.getElementById('modalTitle').textContent      = 'Tambah Paket';
     document.getElementById('modalIcon').setAttribute('icon', 'lucide:package-plus');
-    document.getElementById('submitLabel').textContent = 'Simpan';
-    document.getElementById('fieldType').disabled  = false;
-    document.getElementById('typeNote').textContent = '';
+    document.getElementById('submitLabel').textContent     = 'Simpan';
+    document.getElementById('fieldType').disabled          = false;
+    document.getElementById('typeNote').textContent        = '';
     document.getElementById('discountPreview').textContent = '';
     document.getElementById('pricePreview').style.display  = 'none';
+    getModal().show();
 }
 
 function openEditModal(id, type, name, interval, sessions, multiplier, description, isActive) {
@@ -408,13 +411,13 @@ function openEditModal(id, type, name, interval, sessions, multiplier, descripti
     const baseUrl = '{{ url("subscription-packages") }}';
 
     form.action = `${baseUrl}/${id}`;
-    document.getElementById('formMethod').value    = 'PUT';
+    document.getElementById('formMethod').value        = 'PUT';
     document.getElementById('modalTitle').textContent  = 'Edit Paket';
     document.getElementById('modalIcon').setAttribute('icon', 'lucide:pencil');
     document.getElementById('submitLabel').textContent = 'Update';
 
-    document.getElementById('fieldType').value     = type;
-    document.getElementById('fieldType').disabled  = true;
+    document.getElementById('fieldType').value    = type;
+    document.getElementById('fieldType').disabled = true;
     handleTypeChange(type);
 
     document.getElementById('fieldName').value        = name;
@@ -425,6 +428,7 @@ function openEditModal(id, type, name, interval, sessions, multiplier, descripti
     document.getElementById('fieldIsActive').value    = isActive;
 
     updateDiscountPreview();
+    getModal().show();
 }
 
 function updateDiscountPreview() {
