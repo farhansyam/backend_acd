@@ -376,6 +376,7 @@
 </div>
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const TYPE_NOTES = {
     hemat:    '💡 Cuci 2× setahun, jarak 6 bulan — cocok untuk penggunaan ringan.',
