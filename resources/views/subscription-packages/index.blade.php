@@ -232,139 +232,141 @@
     </div>
 </div>
 
-{{-- ─── Modal Tambah / Edit ────────────────────────────────────────────────── --}}
-<div class="modal fade" id="packageModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content rounded-2xl overflow-hidden border-0">
+{{-- ─── Modal Tambah / Edit (Flowbite) ───────────────────────────────────────── --}}
+<div id="packageModal" tabindex="-1" aria-hidden="true"
+     class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+    <div class="relative p-4 w-full max-w-lg max-h-full">
+        <div class="relative bg-white rounded-2xl shadow dark:bg-neutral-700 overflow-hidden">
 
-            {{-- Modal Header --}}
-            <div class="modal-header border-b border-neutral-100 dark:border-neutral-600
-                        bg-gradient-to-r from-primary-600 to-primary-500 py-4 px-6">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                        <iconify-icon icon="lucide:package-plus" class="text-white text-lg" id="modalIcon"></iconify-icon>
-                    </div>
-                    <h5 class="modal-title font-semibold text-white mb-0" id="modalTitle">Tambah Paket</h5>
+            {{-- Header --}}
+            <div class="flex items-center gap-3 p-5
+                        bg-gradient-to-r from-primary-600 to-primary-500">
+                <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+                    <iconify-icon icon="lucide:package-plus" class="text-white text-lg" id="modalIcon"></iconify-icon>
                 </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <h5 class="text-base font-semibold text-white mb-0 flex-1" id="modalTitle">Tambah Paket</h5>
+                <button type="button"
+                        onclick="hideModal()"
+                        class="text-white/70 hover:text-white hover:bg-white/20 rounded-lg p-1.5 transition">
+                    <iconify-icon icon="lucide:x" class="text-xl"></iconify-icon>
+                </button>
             </div>
 
-            {{-- Modal Body --}}
+            {{-- Form --}}
             <form id="packageForm" action="{{ route('subscription-packages.store') }}" method="POST">
                 @csrf
                 <input type="hidden" name="_method" id="formMethod" value="POST">
 
-                <div class="modal-body p-6">
-                    <div class="flex flex-col gap-4">
+                <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
 
-                        {{-- Tipe --}}
-                        <div>
-                            <label class="form-label fw-semibold text-primary-light text-sm mb-2">
-                                Tipe Paket <span class="text-danger-600">*</span>
-                            </label>
-                            <select name="type" id="fieldType" class="form-control radius-8" required
-                                    onchange="handleTypeChange(this.value)">
-                                <option value="">— Pilih tipe —</option>
-                                <option value="hemat">🔵 Hemat &nbsp;(6 bln sekali)</option>
-                                <option value="rutin">🟡 Rutin &nbsp;(3 bln sekali)</option>
-                                <option value="intensif">🔴 Intensif &nbsp;(1 bln sekali)</option>
-                            </select>
-                            <p class="text-xs text-secondary-light mt-1" id="typeNote"></p>
-                        </div>
-
-                        {{-- Nama --}}
-                        <div>
-                            <label class="form-label fw-semibold text-primary-light text-sm mb-2">
-                                Nama Paket <span class="text-danger-600">*</span>
-                            </label>
-                            <input type="text" name="name" id="fieldName"
-                                   class="form-control radius-8"
-                                   placeholder="Contoh: Paket Hemat Silver" required>
-                        </div>
-
-                        {{-- Interval & Sesi --}}
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="form-label fw-semibold text-primary-light text-sm mb-2">
-                                    Interval <span class="text-danger-600">*</span>
-                                </label>
-                                <div class="relative">
-                                    <input type="number" name="interval_months" id="fieldInterval"
-                                           class="form-control radius-8 pr-12"
-                                           min="1" max="12" placeholder="6" required>
-                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-secondary-light font-medium pointer-events-none">bln</span>
-                                </div>
-                                <p class="text-xs text-secondary-light mt-1">Jarak antar sesi</p>
-                            </div>
-                            <div>
-                                <label class="form-label fw-semibold text-primary-light text-sm mb-2">
-                                    Total Sesi <span class="text-danger-600">*</span>
-                                </label>
-                                <div class="relative">
-                                    <input type="number" name="total_sessions" id="fieldSessions"
-                                           class="form-control radius-8 pr-12"
-                                           min="1" max="24" placeholder="2" required
-                                           oninput="updateDiscountPreview()">
-                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-secondary-light font-medium pointer-events-none">/thn</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Multiplier --}}
-                        <div>
-                            <label class="form-label fw-semibold text-primary-light text-sm mb-2">
-                                Price Multiplier <span class="text-danger-600">*</span>
-                            </label>
-                            <input type="number" name="price_multiplier" id="fieldMultiplier"
-                                   class="form-control radius-8"
-                                   min="0.1" max="1" step="0.01" placeholder="0.90" required
-                                   oninput="updateDiscountPreview()">
-                            <p class="text-xs text-secondary-light mt-1 flex items-center gap-1">
-                                <span>0.1 – 1.0 · 1.0 = harga normal</span>
-                                <span id="discountPreview" class="text-success-600 font-semibold"></span>
-                            </p>
-                        </div>
-
-                        {{-- Preview harga --}}
-                        <div id="pricePreview"
-                             class="bg-success-50 dark:bg-neutral-700 rounded-xl px-4 py-3"
-                             style="display:none">
-                            <p class="text-xs text-secondary-light mb-1 font-semibold uppercase tracking-wide">
-                                Preview (asumsi 1PK = Rp 100.000)
-                            </p>
-                            <p class="text-base font-bold text-success-600" id="previewFinal">-</p>
-                            <p class="text-xs text-secondary-light line-through" id="previewNormal">-</p>
-                        </div>
-
-                        {{-- Deskripsi --}}
-                        <div>
-                            <label class="form-label fw-semibold text-primary-light text-sm mb-2">Deskripsi</label>
-                            <textarea name="description" id="fieldDescription"
-                                      class="form-control radius-8" rows="2"
-                                      placeholder="Deskripsi singkat paket..."></textarea>
-                        </div>
-
-                        {{-- Status --}}
-                        <div>
-                            <label class="form-label fw-semibold text-primary-light text-sm mb-2">
-                                Status <span class="text-danger-600">*</span>
-                            </label>
-                            <select name="is_active" id="fieldIsActive" class="form-control radius-8" required>
-                                <option value="1">✅ Aktif</option>
-                                <option value="0">⏸ Nonaktif</option>
-                            </select>
-                        </div>
-
+                    {{-- Tipe --}}
+                    <div>
+                        <label class="form-label fw-semibold text-primary-light text-sm mb-2">
+                            Tipe Paket <span class="text-danger-600">*</span>
+                        </label>
+                        <select name="type" id="fieldType" class="form-control radius-8" required
+                                onchange="handleTypeChange(this.value)">
+                            <option value="">— Pilih tipe —</option>
+                            <option value="hemat">🔵 Hemat &nbsp;(6 bln sekali)</option>
+                            <option value="rutin">🟡 Rutin &nbsp;(3 bln sekali)</option>
+                            <option value="intensif">🔴 Intensif &nbsp;(1 bln sekali)</option>
+                        </select>
+                        <p class="text-xs text-secondary-light mt-1" id="typeNote"></p>
                     </div>
+
+                    {{-- Nama --}}
+                    <div>
+                        <label class="form-label fw-semibold text-primary-light text-sm mb-2">
+                            Nama Paket <span class="text-danger-600">*</span>
+                        </label>
+                        <input type="text" name="name" id="fieldName"
+                               class="form-control radius-8"
+                               placeholder="Contoh: Paket Hemat Silver" required>
+                    </div>
+
+                    {{-- Interval & Sesi --}}
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="form-label fw-semibold text-primary-light text-sm mb-2">
+                                Interval <span class="text-danger-600">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="number" name="interval_months" id="fieldInterval"
+                                       class="form-control radius-8 pr-12"
+                                       min="1" max="12" placeholder="6" required>
+                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-secondary-light font-medium pointer-events-none">bln</span>
+                            </div>
+                            <p class="text-xs text-secondary-light mt-1">Jarak antar sesi</p>
+                        </div>
+                        <div>
+                            <label class="form-label fw-semibold text-primary-light text-sm mb-2">
+                                Total Sesi <span class="text-danger-600">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="number" name="total_sessions" id="fieldSessions"
+                                       class="form-control radius-8 pr-12"
+                                       min="1" max="24" placeholder="2" required
+                                       oninput="updateDiscountPreview()">
+                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-secondary-light font-medium pointer-events-none">/thn</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Multiplier --}}
+                    <div>
+                        <label class="form-label fw-semibold text-primary-light text-sm mb-2">
+                            Price Multiplier <span class="text-danger-600">*</span>
+                        </label>
+                        <input type="number" name="price_multiplier" id="fieldMultiplier"
+                               class="form-control radius-8"
+                               min="0.1" max="1" step="0.01" placeholder="0.90" required
+                               oninput="updateDiscountPreview()">
+                        <p class="text-xs text-secondary-light mt-1 flex items-center gap-1">
+                            <span>0.1 – 1.0 · 1.0 = harga normal</span>
+                            <span id="discountPreview" class="text-success-600 font-semibold"></span>
+                        </p>
+                    </div>
+
+                    {{-- Preview harga --}}
+                    <div id="pricePreview"
+                         class="bg-success-50 dark:bg-neutral-600 rounded-xl px-4 py-3"
+                         style="display:none">
+                        <p class="text-xs text-secondary-light mb-1 font-semibold uppercase tracking-wide">
+                            Preview (asumsi 1PK = Rp 100.000)
+                        </p>
+                        <p class="text-base font-bold text-success-600" id="previewFinal">-</p>
+                        <p class="text-xs text-secondary-light line-through" id="previewNormal">-</p>
+                    </div>
+
+                    {{-- Deskripsi --}}
+                    <div>
+                        <label class="form-label fw-semibold text-primary-light text-sm mb-2">Deskripsi</label>
+                        <textarea name="description" id="fieldDescription"
+                                  class="form-control radius-8" rows="2"
+                                  placeholder="Deskripsi singkat paket..."></textarea>
+                    </div>
+
+                    {{-- Status --}}
+                    <div>
+                        <label class="form-label fw-semibold text-primary-light text-sm mb-2">
+                            Status <span class="text-danger-600">*</span>
+                        </label>
+                        <select name="is_active" id="fieldIsActive" class="form-control radius-8" required>
+                            <option value="1">✅ Aktif</option>
+                            <option value="0">⏸ Nonaktif</option>
+                        </select>
+                    </div>
+
                 </div>
 
-                {{-- Modal Footer --}}
-                <div class="modal-footer border-t border-neutral-100 dark:border-neutral-600 gap-2 px-6 py-4">
-                    <button type="button" class="btn btn-neutral-200 flex items-center gap-2"
-                            data-bs-dismiss="modal">
+                {{-- Footer --}}
+                <div class="flex items-center gap-3 p-5 border-t border-neutral-100 dark:border-neutral-600">
+                    <button type="button"
+                            onclick="hideModal()"
+                            class="btn btn-neutral-200 flex items-center gap-2">
                         <iconify-icon icon="lucide:x"></iconify-icon> Batal
                     </button>
-                    <button type="submit" class="btn btn-primary-600 flex items-center gap-2" id="submitBtn">
+                    <button type="submit" class="btn btn-primary-600 flex items-center gap-2 ms-auto" id="submitBtn">
                         <iconify-icon icon="lucide:save"></iconify-icon>
                         <span id="submitLabel">Simpan</span>
                     </button>
@@ -376,7 +378,6 @@
 </div>
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const TYPE_NOTES = {
     hemat:    '💡 Cuci 2× setahun, jarak 6 bulan — cocok untuk penggunaan ringan.',
@@ -384,12 +385,20 @@ const TYPE_NOTES = {
     intensif: '⚡ Cuci 12× setahun, tiap bulan — untuk lingkungan berdebu.',
 };
 
-function getModal() {
-    return new bootstrap.Modal(document.getElementById('packageModal'));
-}
-
 function handleTypeChange(val) {
     document.getElementById('typeNote').textContent = TYPE_NOTES[val] ?? '';
+}
+
+function showModal() {
+    const el = document.getElementById('packageModal');
+    el.classList.remove('hidden');
+    el.classList.add('flex');
+}
+
+function hideModal() {
+    const el = document.getElementById('packageModal');
+    el.classList.add('hidden');
+    el.classList.remove('flex');
 }
 
 function openCreateModal() {
@@ -404,7 +413,7 @@ function openCreateModal() {
     document.getElementById('typeNote').textContent        = '';
     document.getElementById('discountPreview').textContent = '';
     document.getElementById('pricePreview').style.display  = 'none';
-    getModal().show();
+    showModal();
 }
 
 function openEditModal(id, type, name, interval, sessions, multiplier, description, isActive) {
@@ -429,7 +438,7 @@ function openEditModal(id, type, name, interval, sessions, multiplier, descripti
     document.getElementById('fieldIsActive').value    = isActive;
 
     updateDiscountPreview();
-    getModal().show();
+    showModal();
 }
 
 function updateDiscountPreview() {
@@ -441,7 +450,6 @@ function updateDiscountPreview() {
     if (!isNaN(multiplier) && multiplier > 0 && multiplier <= 1) {
         const pct = Math.round((1 - multiplier) * 100);
         preview.textContent = pct > 0 ? `· hemat ${pct}%` : '· harga normal';
-
         if (sessions > 0) {
             const normal = 100000 * sessions;
             const final  = Math.round(normal * multiplier);
@@ -452,10 +460,17 @@ function updateDiscountPreview() {
             priceBox.style.display = 'none';
         }
     } else {
-        preview.textContent       = '';
-        priceBox.style.display    = 'none';
+        preview.textContent    = '';
+        priceBox.style.display = 'none';
     }
 }
+
+document.getElementById('fieldSessions').addEventListener('input', updateDiscountPreview);
+
+// Tutup modal saat klik backdrop
+document.getElementById('packageModal').addEventListener('click', function(e) {
+    if (e.target === this) hideModal();
+});
 </script>
 @endpush
 
