@@ -112,11 +112,16 @@ class OrderAssignController extends Controller
         $isSplit = (bool) $request->split_technician;
 
         DB::transaction(function () use ($order, $technician, $request, $isSplit) {
+            // SESUDAH — cek perbaikan phase
+            $nextStatus = ($order->is_perbaikan && $order->perbaikan_phase === 'survey')
+                ? 'survey_in_progress'
+                : 'in_progress';
+
             $order->update([
                 'technician_id'        => $technician->id,
                 'second_technician_id' => $isSplit ? $request->second_technician_id : null,
                 'split_technician'     => $isSplit,
-                'status'               => 'in_progress',
+                'status'               => $nextStatus,  // ← fix
             ]);
 
             OrderAssignment::create([
