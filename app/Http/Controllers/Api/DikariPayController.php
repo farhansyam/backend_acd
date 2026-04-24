@@ -205,15 +205,31 @@ class DikariPayController extends Controller
             }
 
             // Update order
+
+            $nextStatus = ($order->is_perbaikan && $order->perbaikan_phase === 'phase2')
+                ? 'in_progress'
+                : 'confirmed';
+
             $order->update([
-                'coupon_id'      => $couponId,
+                'coupon_id'       => $couponId,
                 'discount_amount' => $discountAmount,
-                'total_amount'   => $finalTotal,
-                'payment_method' => 'DIKARIPAY',
-                'payment_status' => 'paid',
-                'paid_at'        => now(),
-                'status'         => 'confirmed',
+                'total_amount'    => $finalTotal,
+                'payment_method'  => 'DIKARIPAY',
+                'payment_status'  => 'paid',
+                'paid_at'         => now(),
+                'status'          => $nextStatus,
             ]);
+
+            // Notif teknisi jika fase 2
+            if ($order->is_perbaikan && $order->perbaikan_phase === 'phase2') {
+                $technician = $order->technician?->user;
+                if ($technician?->fcm_token) {
+                    app(\App\Services\NotificationService::class)->notifyPhase2Confirmed(
+                        $technician->fcm_token,
+                        (int) $order->id
+                    );
+                }
+            }
 
             return response()->json([
                 'message'       => 'Pembayaran dengan DikariPay berhasil!',
