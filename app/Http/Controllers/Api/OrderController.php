@@ -402,7 +402,7 @@ class OrderController extends Controller
         $phase2Order = Order::create([
             'user_id'             => $order->user_id,
             'bp_id'               => $order->bp_id,
-            'technician_id'       => $order->technician_id,
+            'technician_id'       => $order->technician_id,   // ← sudah ada
             'address_id'          => $order->address_id,
             'user_phone_id'       => $order->user_phone_id,
             'scheduled_date'      => $order->scheduled_date,
@@ -416,10 +416,9 @@ class OrderController extends Controller
             'is_perbaikan'        => true,
             'perbaikan_phase'     => 'phase2',
             'survey_order_id'     => $order->id,
-            'status'              => 'confirmed',
+            'status'              => 'confirmed',   // ← MASALAH DI SINI
             'payment_status'      => 'unpaid',
         ]);
-
         OrderItem::create([
             'order_id'      => $phase2Order->id,
             'bp_service_id' => $bpService->id,

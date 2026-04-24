@@ -231,6 +231,7 @@ class PaymentController extends Controller
     }
 
     // ─── POST callback dari Tripay (webhook) ──────────────────
+    // ─── POST callback dari Tripay (webhook) ──────────────────
     public function callback(Request $request)
     {
         $callbackSignature = $request->server('HTTP_X_CALLBACK_SIGNATURE');
@@ -266,14 +267,33 @@ class PaymentController extends Controller
         }
 
         if ($data['status'] === 'PAID') {
-            if ($data['status'] === 'PAID') {
-                $result = $order->update([
-                    'payment_status' => 'paid',
-                    'paid_at'        => now(),
-                    'status'         => 'confirmed',
-                ]);
-                Log::info('Order updated', ['order_id' => $order->id, 'result' => $result]);
+            // Fase 2 perbaikan → langsung in_progress (teknisi sudah di lokasi)
+            $nextStatus = ($order->is_perbaikan && $order->perbaikan_phase === 'phase2')
+                ? 'in_progress'
+                : 'confirmed';
+
+            $result = $order->update([
+                'payment_status' => 'paid',
+                'paid_at'        => now(),
+                'status'         => $nextStatus,
+            ]);
+
+            // Notif teknisi jika fase 2 langsung in_progress
+            if ($order->is_perbaikan && $order->perbaikan_phase === 'phase2') {
+                $technician = $order->technician?->user;
+                if ($technician?->fcm_token) {
+                    app(\App\Services\NotificationService::class)->notifyPhase2Confirmed(
+                        $technician->fcm_token,
+                        (int) $order->id
+                    );
+                }
             }
+
+            Log::info('Order updated', [
+                'order_id' => $order->id,
+                'status'   => $nextStatus,
+                'result'   => $result,
+            ]);
         } elseif ($data['status'] === 'EXPIRED') {
             $order->update(['payment_status' => 'expired']);
         } elseif ($data['status'] === 'FAILED') {
