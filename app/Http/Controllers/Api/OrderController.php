@@ -338,6 +338,8 @@ class OrderController extends Controller
                 'technician.user',
             ])),
             'report' => [
+                'id'                => $report->id,           // ← tambah
+                'order_id'          => $report->order_id,     // ← tambah
                 'kondisi_unit'      => $report->kondisi_unit,
                 'bagian_bermasalah' => $report->bagian_bermasalah,
                 'catatan'           => $report->catatan,
