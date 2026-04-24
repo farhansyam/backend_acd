@@ -285,10 +285,10 @@
                     </div>
 
                     {{-- Interval & Sesi --}}
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="form-label fw-semibold text-primary-light text-sm mb-2">
-                                Interval <span class="text-danger-600">*</span>
+                                Interval <span class="text-danger-600">*</span>6
                             </label>
                             <div class="relative">
                                 <input type="number" name="interval_months" id="fieldInterval"
