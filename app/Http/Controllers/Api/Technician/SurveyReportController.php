@@ -17,7 +17,7 @@ class SurveyReportController extends Controller
         $request->validate([
             'kondisi_unit'        => 'required|in:normal,kotor,rusak',
             'bagian_bermasalah'   => 'nullable|array',
-            'bagian_bermasalah.*' => 'in:kompresor,freon,filter,pcb,fan,lainnya',
+            'bagian_bermasalah.*' => 'string|max:100',
             'catatan'             => 'nullable|string',
             'rekomendasi'         => 'required|in:cuci_unit,perbaikan',
             'photo_before'        => 'nullable|image|max:5120',
