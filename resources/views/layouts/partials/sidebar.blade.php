@@ -53,8 +53,14 @@
                         <span>Jenis Layanan</span>
                     </a>
                 </li>
-
-                <li class="sidebar-menu-group-title">Operasional</li>
+                <li>
+                    <a href="{{ route('subscription-packages.index') }}"
+                    class="{{ request()->is('subscription-packages*') ? 'active-page' : '' }}">
+                        <iconify-icon icon="lucide:package" class="menu-icon"></iconify-icon>
+                        <span>Paket Langganan</span>
+                    </a>
+                </li>
+                                <li class="sidebar-menu-group-title">Operasional</li>
 
                 <li>
                     <a href="{{ route('orders.index') }}" class="{{ request()->is('orders*') ? 'active-page' : '' }}">

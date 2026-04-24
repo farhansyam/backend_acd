@@ -17,6 +17,7 @@ use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SubscriptionWebController;
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\OrderAssignController;
+use App\Http\Controllers\SubscriptionPackageController;
 
 Route::get('/', function () {
     return view('auth.login');
@@ -108,4 +109,10 @@ Route::middleware(['auth', 'role:adminsuper'])->group(function () {
     Route::resource('articles', ArticleController::class)->except(['show']);
     Route::post('articles/{article}/toggle', [ArticleController::class, 'toggleActive'])->name('articles.toggle');
     // tambah route admin only lainnya di sini
+
+
+    Route::get('subscription-packages',                              [SubscriptionPackageController::class, 'index'])->name('subscription-packages.index');
+    Route::post('subscription-packages',                             [SubscriptionPackageController::class, 'store'])->name('subscription-packages.store');
+    Route::put('subscription-packages/{subscriptionPackage}',        [SubscriptionPackageController::class, 'update'])->name('subscription-packages.update');
+    Route::post('subscription-packages/{subscriptionPackage}/toggle', [SubscriptionPackageController::class, 'toggleActive'])->name('subscription-packages.toggle');
 });
